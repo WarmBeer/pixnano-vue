@@ -1,7 +1,15 @@
 <template>
   <div id="canvas-container">
-    <div id="zoom-controller" :style="{transform: `scale(${zX})`}" @wheel="zoomCanvasContainer">
-      <div id="camera-controller">
+    <div
+      id="zoom-controller"
+      :style="{ transform: `scale(${zX})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px' }"
+      @mousedown="startDragging"
+      @mouseup="endDragging"
+      @mouseleave="endDragging"
+      @mousemove="moveCanvasContainer"
+      @wheel.prevent="zoomCanvasContainer"
+    >
+      <div id="camera-controller" :style="{height: canvasSize + 'px', width: canvasSize + 'px'}">
         <canvas id="canvas" :height="canvasSize" :width="canvasSize"></canvas>
         <canvas id="grid" :height="canvasSize" :width="canvasSize"></canvas>
       </div>
@@ -14,27 +22,53 @@
     name: 'HelloWorld',
 
     data: () => ({
-      canvasSize: 128,
+      canvasSize: 256,
       scale: 1,
-      zX: 1.3,
+      zX: 2,
       maxZoom: 32,
       minZoom: 1,
+      movement: {
+        dragging: false,
+        startX: 0,
+        startY: 0,
+        offsetX: 0,
+        offsetY: 0,
+        deltaX: 0,
+        deltaY: 0,
+      },
     }),
     methods: {
+      startDragging(e) {
+        this.movement.dragging = true;
+        this.movement.startX = e.x;
+        this.movement.startY = e.y;
+      },
+      endDragging() {
+        this.movement.dragging = false;
+        this.movement.offsetX += this.movement.deltaX;
+        this.movement.offsetY += this.movement.deltaY;
+        this.movement.deltaX = 0;
+        this.movement.deltaY = 0;
+      },
+      moveCanvasContainer(e) {
+        if (this.movement.dragging) {
+          this.movement.deltaX = e.x - this.movement.startX;
+          this.movement.deltaY = e.y - this.movement.startY;
+        }
+      },
       zoomCanvasContainer(e) {
-        console.log(e);
         let scrollDirection;
         const minZoom = this.minZoom;
         const maxZoom = this.maxZoom;
 
         scrollDirection = (e.deltaY > 0) ? -0.1 : 0.1;
         scrollDirection *= (Math.sqrt(this.zX)*1.6);
+
         if(scrollDirection > 0 && this.zX <= maxZoom || scrollDirection < 0 && this.zX > minZoom) {
           this.zX += scrollDirection;
           if(this.zX > maxZoom) this.zX = maxZoom;
           if(this.zX < minZoom) this.zX = minZoom;
         }
-        e.preventDefault();
       },
       renderDataOnCanvas(canvasData) {
         const CANVAS = document.getElementById("canvas");
@@ -86,9 +120,14 @@ canvas {
 }
 
 #zoom-controller {
+  position: relative;
   transform-origin: center;
   z-index: 1;
   cursor: move;
+}
+
+#camera-controller {
+  position: relative;
 }
 
 #canvas {
