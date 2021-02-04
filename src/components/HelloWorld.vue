@@ -1,94 +1,12 @@
 <template>
-  <v-container>
-    <v-row class="text-center">
-      <v-col cols="12">
-        <v-img
-          :src="require('../assets/logo.svg')"
-          class="my-3"
-          contain
-          height="200"
-        />
-      </v-col>
-
-      <v-col class="mb-4">
-        <h1 class="display-2 font-weight-bold mb-3">
-          Welcome to Vuetify
-        </h1>
-
-        <p class="subheading font-weight-regular">
-          For help and collaboration with other Vuetify developers,
-          <br>please join our online
-          <a
-            href="https://community.vuetifyjs.com"
-            target="_blank"
-          >Discord Community</a>
-        </p>
-      </v-col>
-
-      <v-col
-        class="mb-5"
-        cols="12"
-      >
-        <h2 class="headline font-weight-bold mb-3">
-          What's next?
-        </h2>
-
-        <v-row justify="center">
-          <a
-            v-for="(next, i) in whatsNext"
-            :key="i"
-            :href="next.href"
-            class="subheading mx-3"
-            target="_blank"
-          >
-            {{ next.text }}
-          </a>
-        </v-row>
-      </v-col>
-
-      <v-col
-        class="mb-5"
-        cols="12"
-      >
-        <h2 class="headline font-weight-bold mb-3">
-          Important Links
-        </h2>
-
-        <v-row justify="center">
-          <a
-            v-for="(link, i) in importantLinks"
-            :key="i"
-            :href="link.href"
-            class="subheading mx-3"
-            target="_blank"
-          >
-            {{ link.text }}
-          </a>
-        </v-row>
-      </v-col>
-
-      <v-col
-        class="mb-5"
-        cols="12"
-      >
-        <h2 class="headline font-weight-bold mb-3">
-          Ecosystem
-        </h2>
-
-        <v-row justify="center">
-          <a
-            v-for="(eco, i) in ecosystem"
-            :key="i"
-            :href="eco.href"
-            class="subheading mx-3"
-            target="_blank"
-          >
-            {{ eco.text }}
-          </a>
-        </v-row>
-      </v-col>
-    </v-row>
-  </v-container>
+  <div id="canvas-container">
+    <div id="zoom-controller" :style="{transform: `scale(${zX})`}" @wheel="zoomCanvasContainer">
+      <div id="camera-controller">
+        <canvas id="canvas" :height="canvasSize" :width="canvasSize"></canvas>
+        <canvas id="grid" :height="canvasSize" :width="canvasSize"></canvas>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -96,56 +14,119 @@
     name: 'HelloWorld',
 
     data: () => ({
-      ecosystem: [
-        {
-          text: 'vuetify-loader',
-          href: 'https://github.com/vuetifyjs/vuetify-loader',
-        },
-        {
-          text: 'github',
-          href: 'https://github.com/vuetifyjs/vuetify',
-        },
-        {
-          text: 'awesome-vuetify',
-          href: 'https://github.com/vuetifyjs/awesome-vuetify',
-        },
-      ],
-      importantLinks: [
-        {
-          text: 'Documentation',
-          href: 'https://vuetifyjs.com',
-        },
-        {
-          text: 'Chat',
-          href: 'https://community.vuetifyjs.com',
-        },
-        {
-          text: 'Made with Vuetify',
-          href: 'https://madewithvuejs.com/vuetify',
-        },
-        {
-          text: 'Twitter',
-          href: 'https://twitter.com/vuetifyjs',
-        },
-        {
-          text: 'Articles',
-          href: 'https://medium.com/vuetify',
-        },
-      ],
-      whatsNext: [
-        {
-          text: 'Explore components',
-          href: 'https://vuetifyjs.com/components/api-explorer',
-        },
-        {
-          text: 'Select a layout',
-          href: 'https://vuetifyjs.com/getting-started/pre-made-layouts',
-        },
-        {
-          text: 'Frequently Asked Questions',
-          href: 'https://vuetifyjs.com/getting-started/frequently-asked-questions',
-        },
-      ],
+      canvasSize: 128,
+      scale: 1,
+      zX: 1.3,
+      maxZoom: 32,
+      minZoom: 1,
     }),
+    methods: {
+      zoomCanvasContainer(e) {
+        console.log(e);
+        let scrollDirection;
+        const minZoom = this.minZoom;
+        const maxZoom = this.maxZoom;
+
+        scrollDirection = (e.deltaY > 0) ? -0.1 : 0.1;
+        scrollDirection *= (Math.sqrt(this.zX)*1.6);
+        if(scrollDirection > 0 && this.zX <= maxZoom || scrollDirection < 0 && this.zX > minZoom) {
+          this.zX += scrollDirection;
+          if(this.zX > maxZoom) this.zX = maxZoom;
+          if(this.zX < minZoom) this.zX = minZoom;
+        }
+        e.preventDefault();
+      },
+      renderDataOnCanvas(canvasData) {
+        const CANVAS = document.getElementById("canvas");
+        const CANVAS_CTX = CANVAS.getContext("2d");
+
+        canvasData.forEach((row, rowIndex) => {
+          row.forEach((col, colIndex) => {
+            CANVAS_CTX.fillStyle = col
+            CANVAS_CTX.fillRect(colIndex * this.scale, rowIndex * this.scale, this.scale, this.scale)
+          })
+        })
+      },
+      renderGrid() {
+        const GRID = document.getElementById("grid");
+        const GRID_CTX = GRID.getContext("2d");
+        const GRID_COLOR_EVEN = '#D3D3D3';
+        const GRID_COLOR_UNEVEN = '#FFFFFF';
+
+        for(let row = 0;row<500;row++){
+          for(let i = 0;i<500;i++) {
+            if(i%2===0) {
+              if(row%2===0) {
+                GRID_CTX.fillStyle = GRID_COLOR_EVEN
+              } else {
+                GRID_CTX.fillStyle = GRID_COLOR_UNEVEN
+              }
+            } else {
+              if(row%2===1) {
+                GRID_CTX.fillStyle = GRID_COLOR_EVEN
+              } else {
+                GRID_CTX.fillStyle = GRID_COLOR_UNEVEN
+              }
+            }
+            GRID_CTX.fillRect(i,row,1,1);
+          }
+        }
+      }
+    },
+    mounted() {
+      this.renderGrid();
+    }
   }
 </script>
+
+<style scoped>
+canvas {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+}
+
+#zoom-controller {
+  transform-origin: center;
+  z-index: 1;
+  cursor: move;
+}
+
+#canvas {
+  position: absolute;
+  transform-origin: 0 0;
+}
+
+#grid.show {
+  visibility: visible!important;
+}
+
+#grid {
+  position: absolute;
+  display: block;
+  visibility: visible;
+  z-index: 4;
+  opacity: 0.25;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+#canvas-container {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+}
+
+#camera-controller {
+  position: relative;
+}
+</style>
