@@ -7,11 +7,11 @@
       <v-chip
           class="backdrop"
           style="width: 100%;cursor: pointer"
-          color="secondary"
+          color="primary"
           text-color="white"
       >
         <div
-            class="px-2 rounded-lg secondary darken-1"
+            class="px-2 rounded-lg primary darken-1"
         >
           {{ funds.toLocaleString() }}
         </div>
@@ -31,9 +31,11 @@
       <div
           id="zoom-controller"
           :style="{ transform: `scale(${zoom.zoomIntensity})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px', cursor: editMode ? 'default' : 'move' }"
-          @click="paintPixel"
-          @mousedown="startDragging"
-          @mouseup="endDragging"
+          @contextmenu.prevent
+          @mousedown.left="handleLeftClick"
+          @mousedown.right="startDragging"
+          @mouseup.left="endDragging"
+          @mouseup.right="endDragging"
           @mouseleave="endDragging"
           @mousemove="moveCanvasContainer"
           @wheel.prevent="zoomCanvasContainer"
@@ -78,31 +80,30 @@
       },
     }),
     methods: {
+      handleLeftClick(e) {
+        if (this.editMode) { this.paintPixel(e) } else { this.startDragging(e) }
+      },
       paintPixel(e) {
-        if (this.editMode) {
-          const CAMERA_CONTROLLER = document.getElementById("camera-controller");
-          const CANVAS = document.getElementById("canvas");
-          const CANVAS_CTX = CANVAS.getContext("2d");
-          const OFFSET = CAMERA_CONTROLLER.getBoundingClientRect();
-          const xPosition = Math.floor(((e.clientX - OFFSET.left) / this.zoom.zoomIntensity) / this.scale)
-          const yPosition = Math.floor(((e.clientY - OFFSET.top) / this.zoom.zoomIntensity) / this.scale)
+        const CAMERA_CONTROLLER = document.getElementById("camera-controller");
+        const CANVAS = document.getElementById("canvas");
+        const CANVAS_CTX = CANVAS.getContext("2d");
+        const OFFSET = CAMERA_CONTROLLER.getBoundingClientRect();
+        const xPosition = Math.floor(((e.clientX - OFFSET.left) / this.zoom.zoomIntensity) / this.scale)
+        const yPosition = Math.floor(((e.clientY - OFFSET.top) / this.zoom.zoomIntensity) / this.scale)
 
-          CANVAS_CTX.fillStyle = this.color
-          CANVAS_CTX.fillRect(xPosition * this.scale, yPosition * this.scale, this.scale, this.scale)
+        CANVAS_CTX.fillStyle = this.color
+        CANVAS_CTX.fillRect(xPosition * this.scale, yPosition * this.scale, this.scale, this.scale)
 
-          console.log("Clicked!", xPosition, yPosition, this.zoom.zoomIntensity)
-          console.log("e!", ((e.clientX - OFFSET.left) / this.zoom.zoomIntensity), ((e.clientY - OFFSET.top) / this.zoom.zoomIntensity), this.zoom.zoomIntensity)
-        }
+        console.log("Clicked!", xPosition, yPosition, this.zoom.zoomIntensity)
+        console.log("e!", ((e.clientX - OFFSET.left) / this.zoom.zoomIntensity), ((e.clientY - OFFSET.top) / this.zoom.zoomIntensity), this.zoom.zoomIntensity)
       },
       changeColor(e) {
         this.color = e.target.value;
       },
       startDragging(e) {
-        if (!this.editMode) {
-          this.movement.dragging = true;
-          this.movement.startX = e.x;
-          this.movement.startY = e.y;
-        }
+        this.movement.dragging = true;
+        this.movement.startX = e.x;
+        this.movement.startY = e.y;
       },
       endDragging() {
         this.movement.dragging = false;
@@ -193,7 +194,7 @@ img {
 
 #optionsMenu {
   z-index: 5;
-  width: 200px;
+  width: 216px;
   position: absolute;
   left: 1rem;
   top: 1rem;
