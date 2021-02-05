@@ -33,4 +33,8 @@ html, body {margin: 0; height: 100%; overflow: hidden}
 ::-webkit-scrollbar-thumb {
   background: #FF0000;
 }
+
+.backdrop {
+  box-shadow: 0 5px 15px rgb(0 0 0 / 10%);
+}
 </style>

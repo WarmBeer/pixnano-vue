@@ -1,20 +1,46 @@
 <template>
-  <div id="canvas-container">
-    <div
-      id="zoom-controller"
-      :style="{ transform: `scale(${zX})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px' }"
-      @mousedown="startDragging"
-      @mouseup="endDragging"
-      @mouseleave="endDragging"
-      @mousemove="moveCanvasContainer"
-      @wheel.prevent="zoomCanvasContainer"
-    >
-      <div id="camera-controller" :style="{height: canvasSize + 'px', width: canvasSize + 'px'}">
-        <canvas id="canvas" :height="canvasSize" :width="canvasSize"></canvas>
-        <canvas id="grid" :height="canvasSize" :width="canvasSize"></canvas>
+  <v-container>
+    <div id="optionsMenu" class="pa-5 rounded-lg dark light--text backdrop">
+      <div class="logo">
+        <img :src="require('@/assets/logo.png')" height="auto" width="auto">
+      </div>
+      <v-chip
+          style="width: 100%"
+          color="primary"
+          text-color="white"
+      >
+        <v-avatar
+            left
+            class="primary darken-1"
+        >
+          10
+        </v-avatar>
+        <div class="font-weight-bold">
+          Pixels Left
+        </div>
+        <img class="ml-2" height="12px" :src="require('@/assets/nano.svg')"/>
+      </v-chip>
+      <v-btn id="toggleMode" class="mt-4 rounded-lg primary backdrop" width="100%" @click="editMode = !editMode">{{ editMode ? 'Viewing Mode' : 'Edit Mode' }}</v-btn>
+      <v-btn id="toggleGrid" class="mt-4 rounded-lg primary backdrop" width="100%" @click="showGrid = !showGrid">{{ showGrid ? 'Hide Grid' : 'Show Grid' }}</v-btn>
+    </div>
+
+    <div id="canvas-container" class="backdrop">
+      <div
+          id="zoom-controller"
+          :style="{ transform: `scale(${zooming.zoom})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px' }"
+          @mousedown="startDragging"
+          @mouseup="endDragging"
+          @mouseleave="endDragging"
+          @mousemove="moveCanvasContainer"
+          @wheel.prevent="zoomCanvasContainer"
+      >
+        <div id="camera-controller" :style="{height: canvasSize + 'px', width: canvasSize + 'px'}">
+          <canvas id="canvas" :height="canvasSize" :width="canvasSize"></canvas>
+          <canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }" :height="canvasSize" :width="canvasSize"></canvas>
+        </div>
       </div>
     </div>
-  </div>
+  </v-container>
 </template>
 
 <script>
@@ -24,9 +50,13 @@
     data: () => ({
       canvasSize: 256,
       scale: 1,
-      zX: 2,
-      maxZoom: 32,
-      minZoom: 1,
+      editMode: false,
+      showGrid: true,
+      zooming: {
+        zoom: 2,
+        maxZoom: 32,
+        minZoom: 1,
+      },
       movement: {
         dragging: false,
         startX: 0,
@@ -58,16 +88,16 @@
       },
       zoomCanvasContainer(e) {
         let scrollDirection;
-        const minZoom = this.minZoom;
-        const maxZoom = this.maxZoom;
+        const minZoom = this.zooming.minZoom;
+        const maxZoom = this.zooming.maxZoom;
 
         scrollDirection = (e.deltaY > 0) ? -0.1 : 0.1;
-        scrollDirection *= (Math.sqrt(this.zX)*1.6);
+        scrollDirection *= (Math.sqrt(this.zooming.zoom)*1.6);
 
-        if(scrollDirection > 0 && this.zX <= maxZoom || scrollDirection < 0 && this.zX > minZoom) {
-          this.zX += scrollDirection;
-          if(this.zX > maxZoom) this.zX = maxZoom;
-          if(this.zX < minZoom) this.zX = minZoom;
+        if(scrollDirection > 0 && this.zooming.zoom <= maxZoom || scrollDirection < 0 && this.zooming.zoom > minZoom) {
+          this.zooming.zoom += scrollDirection;
+          if(this.zooming.zoom > maxZoom) this.zooming.zoom = maxZoom;
+          if(this.zooming.zoom < minZoom) this.zooming.zoom = minZoom;
         }
       },
       renderDataOnCanvas(canvasData) {
@@ -114,6 +144,27 @@
 </script>
 
 <style scoped>
+img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+#optionsMenu {
+  z-index: 5;
+  width: 200px;
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+}
+
+.logo {
+  z-index: 5;
+  width: auto;
+  height: auto;
+  position: relative;
+  display: inline-block;
+}
+
 canvas {
   image-rendering: -moz-crisp-edges;
   image-rendering: pixelated;
@@ -135,14 +186,9 @@ canvas {
   transform-origin: 0 0;
 }
 
-#grid.show {
-  visibility: visible!important;
-}
-
 #grid {
   position: absolute;
   display: block;
-  visibility: visible;
   z-index: 4;
   opacity: 0.25;
   pointer-events: none;
