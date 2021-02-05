@@ -79,6 +79,14 @@
         deltaY: 0,
       },
     }),
+    sockets: {
+      connect: function () {
+        console.log('socket connected')
+      },
+      customEmit: function () {
+        console.log('this method was fired by the socket server. eg: io.emit("customEmit", data)')
+      }
+    },
     methods: {
       handleLeftClick(e) {
         if (this.editMode) { this.paintPixel(e) } else { this.startDragging(e) }
