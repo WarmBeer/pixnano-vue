@@ -13,7 +13,7 @@
         <div
             class="px-2 rounded-lg secondary darken-1"
         >
-          {{ funds }}
+          {{ funds.toLocaleString() }}
         </div>
         <v-icon large class="d-inline-flex justify-end" style="width: 100%">$nanoIcon</v-icon>
       </v-chip>
@@ -24,6 +24,7 @@
       </div>
       <v-btn id="toggleMode" class="mt-2 rounded-lg primary backdrop" width="100%" @click="editMode = !editMode">{{ editMode ? 'Viewing Mode' : 'Edit Mode' }}</v-btn>
       <v-btn id="toggleGrid" class="mt-2 rounded-lg primary backdrop" width="100%" @click="showGrid = !showGrid">{{ showGrid ? 'Hide Grid' : 'Show Grid' }}</v-btn>
+      <v-btn id="toggleNightMode" class="mt-2 rounded-lg light backdrop" width="100%" @click="$emit('update:nightMode', !nightMode);">{{ nightMode ? 'Dark Theme' : 'Light Theme' }}</v-btn>
     </div>
 
     <div id="canvas-container">
@@ -39,7 +40,7 @@
       >
         <div id="camera-controller" :style="{height: canvasSize + 'px', width: canvasSize + 'px'}">
           <canvas id="canvas" :height="canvasSize" :width="canvasSize"/>
-          <canvas id="grid" :height="canvasSize" :width="canvasSize"/>
+          <canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }" :height="canvasSize" :width="canvasSize"/>
         </div>
       </div>
     </div>
@@ -51,6 +52,7 @@
     name: 'HelloWorld',
     components: {
     },
+    props: ['nightMode'],
     data: () => ({
       funds: 7312,
       canvasSize: 256,
