@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import Vuetify from 'vuetify/lib';
+import NanoIcon from "@/components/NanoIcon";
 
 Vue.use(Vuetify)
 
@@ -15,6 +16,13 @@ const vuetify = new Vuetify({
                 light: '#F4FAFF',
                 dark: '#000034',
                 bg: '#ffffff',
+            },
+        },
+    },
+    icons: {
+        values: {
+            nanoIcon: { // name of our custom icon
+                component: NanoIcon, // our custom component
             },
         },
     },

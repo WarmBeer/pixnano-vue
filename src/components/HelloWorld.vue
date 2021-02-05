@@ -1,21 +1,21 @@
 <template>
-  <v-container>
+  <div>
     <div id="optionsMenu" class="pa-5 rounded-lg dark light--text backdrop">
       <div class="logo">
         <img :src="require('@/assets/logo.png')" height="auto" width="auto">
       </div>
       <v-chip
-          class="backdrop-primary"
+          class="backdrop"
           style="width: 100%;cursor: pointer"
-          color="primary"
+          color="secondary"
           text-color="white"
       >
         <div
-            class="mr-2 px-2 rounded-lg primary darken-1"
+            class="px-2 rounded-lg secondary darken-1"
         >
-          7312
+          {{ funds }}
         </div>
-        <v-img src="@/assets/nano.svg" width="32px"/>
+        <v-icon large class="d-inline-flex justify-end" style="width: 100%">$nanoIcon</v-icon>
       </v-chip>
       <div class="mt-2">
         <div class="pa-4 rounded-lg float-right" :style="{ backgroundColor: color, border: '2px solid ' +  this.$vuetify.theme.themes.light.secondary}" style="width: 100%;cursor: pointer" @click="$refs.colorPicker.click()">
@@ -38,12 +38,12 @@
           @wheel.prevent="zoomCanvasContainer"
       >
         <div id="camera-controller" :style="{height: canvasSize + 'px', width: canvasSize + 'px'}">
-          <canvas id="canvas" :height="canvasSize" :width="canvasSize"></canvas>
-          <canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }" :height="canvasSize" :width="canvasSize"></canvas>
+          <canvas id="canvas" :height="canvasSize" :width="canvasSize"/>
+          <canvas id="grid" :height="canvasSize" :width="canvasSize"/>
         </div>
       </div>
     </div>
-  </v-container>
+  </div>
 </template>
 
 <script>
@@ -52,7 +52,7 @@
     components: {
     },
     data: () => ({
-      funds: 0,
+      funds: 7312,
       canvasSize: 256,
       color: '#000000',
       scale: 1,
@@ -65,6 +65,8 @@
       },
       movement: {
         dragging: false,
+        originX: 0,
+        originY: 0,
         startX: 0,
         startY: 0,
         offsetX: 0,
@@ -76,11 +78,12 @@
     methods: {
       paintPixel(e) {
         if (this.editMode) {
+          const CAMERA_CONTROLLER = document.getElementById("camera-controller");
           const CANVAS = document.getElementById("canvas");
           const CANVAS_CTX = CANVAS.getContext("2d");
-          const OFFSET = CANVAS.getBoundingClientRect();
-          const xPosition = Math.floor(((e.clientX - OFFSET.left) / this.zoom.zoomIntensity) / this.scale) -1
-          const yPosition = Math.floor(((e.clientY - OFFSET.top) / this.zoom.zoomIntensity) / this.scale) -1
+          const OFFSET = CAMERA_CONTROLLER.getBoundingClientRect();
+          const xPosition = Math.floor(((e.clientX - OFFSET.left) / this.zoom.zoomIntensity) / this.scale)
+          const yPosition = Math.floor(((e.clientY - OFFSET.top) / this.zoom.zoomIntensity) / this.scale)
 
           CANVAS_CTX.fillStyle = this.color
           CANVAS_CTX.fillRect(xPosition * this.scale, yPosition * this.scale, this.scale, this.scale)
@@ -105,6 +108,8 @@
         this.movement.offsetY += this.movement.deltaY;
         this.movement.deltaX = 0;
         this.movement.deltaY = 0;
+        this.movement.originX = (this.canvasSize - this.movement.offsetX)/5;
+        this.movement.originY = (this.canvasSize - this.movement.offsetY)/5;
       },
       moveCanvasContainer(e) {
         if (this.movement.dragging) {
@@ -169,10 +174,19 @@
   }
 </script>
 
-<style scoped>
+<style lang="scss">
+html, body {
+  margin:0;
+  padding:0;
+}
+
 img {
   max-width: 100%;
   max-height: 100%;
+}
+
+.v-chip__content {
+  width: 100%;
 }
 
 #optionsMenu {
@@ -192,17 +206,16 @@ img {
 }
 
 canvas {
-  display: block;
-  vertical-align: middle;
-  line-height: 0;
+  margin:-1px!important;
+  display: block!important;
   image-rendering: -moz-crisp-edges;
   image-rendering: pixelated;
+  position: absolute;
 }
 
 #zoom-controller {
   position: relative;
   transform-origin: center;
-  -webkit-transform-origin: center;
   z-index: 1;
 }
 
@@ -210,18 +223,10 @@ canvas {
   position: relative;
 }
 
-#canvas {
-  position: absolute;
-  transform-origin: 0 0;
-}
-
 #grid {
-  position: absolute;
-  display: block;
   z-index: 4;
   opacity: 0.25;
   pointer-events: none;
-  transform-origin: 0 0;
 }
 
 #canvas-container {
