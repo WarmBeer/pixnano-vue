@@ -5,29 +5,32 @@
         <img :src="require('@/assets/logo.png')" height="auto" width="auto">
       </div>
       <v-chip
-          style="width: 100%"
+          class="backdrop-primary"
+          style="width: 100%;cursor: pointer"
           color="primary"
           text-color="white"
       >
-        <v-avatar
-            left
-            class="primary darken-1"
+        <div
+            class="mr-2 px-2 rounded-lg primary darken-1"
         >
-          10
-        </v-avatar>
-        <div class="font-weight-bold">
-          Pixels Left
+          7312
         </div>
-        <img class="ml-2" height="12px" :src="require('@/assets/nano.svg')"/>
+        <v-img src="@/assets/nano.svg" width="32px"/>
       </v-chip>
-      <v-btn id="toggleMode" class="mt-4 rounded-lg primary backdrop" width="100%" @click="editMode = !editMode">{{ editMode ? 'Viewing Mode' : 'Edit Mode' }}</v-btn>
-      <v-btn id="toggleGrid" class="mt-4 rounded-lg primary backdrop" width="100%" @click="showGrid = !showGrid">{{ showGrid ? 'Hide Grid' : 'Show Grid' }}</v-btn>
+      <div class="mt-2">
+        <div class="pa-4 rounded-lg float-right" :style="{ backgroundColor: color, border: '2px solid ' +  this.$vuetify.theme.themes.light.secondary}" style="width: 100%;cursor: pointer" @click="$refs.colorPicker.click()">
+          <input hidden ref="colorPicker" type="color" @change="changeColor">
+        </div>
+      </div>
+      <v-btn id="toggleMode" class="mt-2 rounded-lg primary backdrop" width="100%" @click="editMode = !editMode">{{ editMode ? 'Viewing Mode' : 'Edit Mode' }}</v-btn>
+      <v-btn id="toggleGrid" class="mt-2 rounded-lg primary backdrop" width="100%" @click="showGrid = !showGrid">{{ showGrid ? 'Hide Grid' : 'Show Grid' }}</v-btn>
     </div>
 
-    <div id="canvas-container" class="backdrop">
+    <div id="canvas-container">
       <div
           id="zoom-controller"
-          :style="{ transform: `scale(${zooming.zoom})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px' }"
+          :style="{ transform: `scale(${zoom.zoomIntensity})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px', cursor: editMode ? 'default' : 'move' }"
+          @click="paintPixel"
           @mousedown="startDragging"
           @mouseup="endDragging"
           @mouseleave="endDragging"
@@ -46,14 +49,17 @@
 <script>
   export default {
     name: 'HelloWorld',
-
+    components: {
+    },
     data: () => ({
+      funds: 0,
       canvasSize: 256,
+      color: '#000000',
       scale: 1,
       editMode: false,
       showGrid: true,
-      zooming: {
-        zoom: 2,
+      zoom: {
+        zoomIntensity: 2,
         maxZoom: 32,
         minZoom: 1,
       },
@@ -68,10 +74,30 @@
       },
     }),
     methods: {
+      paintPixel(e) {
+        if (this.editMode) {
+          const CANVAS = document.getElementById("canvas");
+          const CANVAS_CTX = CANVAS.getContext("2d");
+          const OFFSET = CANVAS.getBoundingClientRect();
+          const xPosition = Math.floor(((e.clientX - OFFSET.left) / this.zoom.zoomIntensity) / this.scale) -1
+          const yPosition = Math.floor(((e.clientY - OFFSET.top) / this.zoom.zoomIntensity) / this.scale) -1
+
+          CANVAS_CTX.fillStyle = this.color
+          CANVAS_CTX.fillRect(xPosition * this.scale, yPosition * this.scale, this.scale, this.scale)
+
+          console.log("Clicked!", xPosition, yPosition, this.zoom.zoomIntensity)
+          console.log("e!", ((e.clientX - OFFSET.left) / this.zoom.zoomIntensity), ((e.clientY - OFFSET.top) / this.zoom.zoomIntensity), this.zoom.zoomIntensity)
+        }
+      },
+      changeColor(e) {
+        this.color = e.target.value;
+      },
       startDragging(e) {
-        this.movement.dragging = true;
-        this.movement.startX = e.x;
-        this.movement.startY = e.y;
+        if (!this.editMode) {
+          this.movement.dragging = true;
+          this.movement.startX = e.x;
+          this.movement.startY = e.y;
+        }
       },
       endDragging() {
         this.movement.dragging = false;
@@ -88,16 +114,16 @@
       },
       zoomCanvasContainer(e) {
         let scrollDirection;
-        const minZoom = this.zooming.minZoom;
-        const maxZoom = this.zooming.maxZoom;
+        const minZoom = this.zoom.minZoom;
+        const maxZoom = this.zoom.maxZoom;
 
         scrollDirection = (e.deltaY > 0) ? -0.1 : 0.1;
-        scrollDirection *= (Math.sqrt(this.zooming.zoom)*1.6);
+        scrollDirection *= (Math.sqrt(this.zoom.zoomIntensity)*1.6);
 
-        if(scrollDirection > 0 && this.zooming.zoom <= maxZoom || scrollDirection < 0 && this.zooming.zoom > minZoom) {
-          this.zooming.zoom += scrollDirection;
-          if(this.zooming.zoom > maxZoom) this.zooming.zoom = maxZoom;
-          if(this.zooming.zoom < minZoom) this.zooming.zoom = minZoom;
+        if(scrollDirection > 0 && this.zoom.zoomIntensity <= maxZoom || scrollDirection < 0 && this.zoom.zoomIntensity > minZoom) {
+          this.zoom.zoomIntensity += scrollDirection;
+          if(this.zoom.zoomIntensity > maxZoom) this.zoom.zoomIntensity = maxZoom;
+          if(this.zoom.zoomIntensity < minZoom) this.zoom.zoomIntensity = minZoom;
         }
       },
       renderDataOnCanvas(canvasData) {
@@ -166,6 +192,9 @@ img {
 }
 
 canvas {
+  display: block;
+  vertical-align: middle;
+  line-height: 0;
   image-rendering: -moz-crisp-edges;
   image-rendering: pixelated;
 }
@@ -173,8 +202,8 @@ canvas {
 #zoom-controller {
   position: relative;
   transform-origin: center;
+  -webkit-transform-origin: center;
   z-index: 1;
-  cursor: move;
 }
 
 #camera-controller {

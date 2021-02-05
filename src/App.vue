@@ -23,7 +23,8 @@ export default {
 </script>
 
 <style>
-html, body {margin: 0; height: 100%; overflow: hidden}
+html, body { padding: 0; margin: 0; width: 100%; height: 100%; }
+body {overflow: hidden}
 
 ::-webkit-scrollbar {
   width: 0px;  /* remove scrollbar space */
@@ -36,5 +37,9 @@ html, body {margin: 0; height: 100%; overflow: hidden}
 
 .backdrop {
   box-shadow: 0 5px 15px rgb(0 0 0 / 10%);
+}
+
+.backdrop-primary {
+  box-shadow: 0 10px 20px 0 rgb(74 144 226 / 25%);
 }
 </style>
