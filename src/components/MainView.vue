@@ -1,139 +1,46 @@
 <template>
   <div>
     <snackbar ref="snackbar" :string="snackbar.string" :timeout="snackbar.timeout" :type="snackbar.type"/>
-    <v-row justify="center">
-      <v-dialog
-          v-model="signupDialog"
-          persistent
-          max-width="600px"
-          style="z-index: 10"
-      >
-        <v-card>
-          <v-toolbar
-              flat
-              dark
-              color="primary"
-          >
-            <v-toolbar-title>Create New Account</v-toolbar-title>
-            <v-spacer></v-spacer>
-            <v-btn
-                icon
-                dark
-                @click="signupDialog = false"
-            >
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
-          </v-toolbar>
-          <v-card-text>
-            <v-container>
-              <v-row>
-                <v-form
-                    class="mt-4"
-                    style="width: 100%"
-                    ref="form"
-                    v-model="signupValid"
-                >
-                  <v-col cols="12">
-                    <v-text-field
-                        solo
-                        flat
-                        dense
-                        background-color="light"
-                        v-model="authentication.username"
-                        label="Username*"
-                        :counter="20"
-                        :rules="[v => !!v || 'Username is required.', v => (v && v.length <= 20 && v.length >= 8) || 'Username can be min 8 and max 20 characters.', v => /^(?=[a-zA-Z0-9._]{8,20}$)(?!.*[_.]{2})[^_.].*[^_.]$/.test(v) || 'Illegal characters or wrong format.']"
-                        required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12">
-                    <v-text-field
-                        solo
-                        flat
-                        dense
-                        background-color="light"
-                        v-model="authentication.email"
-                        label="Email*"
-                        :counter="20"
-                        :rules="[v => !!v || 'Email is required.', v => (v && v.length <= 64 && v.length >= 4) || 'Email can be min 4 and max 64 characters.', v => /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/.test(v) || 'Illegal characters or wrong format.']"
-                        required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12">
-                    <v-text-field
-                        solo
-                        flat
-                        dense
-                        background-color="light"
-                        v-model="authentication.password"
-                        label="Password*"
-                        type="password"
-                        :counter="20"
-                        :rules="[v => !!v || 'Password is required.', v => (v && v.length <= 20 && v.length >= 8) || 'Password can be min 8 and max 20 characters.']"
-                        required
-                    ></v-text-field>
-                  </v-col>
-                  <v-alert
-                      v-if="signupSuccess"
-                      dense
-                      text
-                      type="success"
-                  >
-                    Account created <strong>successfully.</strong> Please <strong>wait a moment.</strong>
-                  </v-alert>
-                  <v-alert
-                      v-if="signupError"
-                      dense
-                      text
-                      type="error"
-                  >
-                    <strong>Error.</strong> {{ signupError }}
-                  </v-alert>
-                </v-form>
-              </v-row>
-              <v-row class="mt-4">
-                <small>*indicates required field</small>
-              </v-row>
-              <v-row>
-                <v-btn
-                    color="primary"
-                    :disabled="!signupValid"
-                    @click="createAccount"
-                >
-                  Create New Account
-                </v-btn>
-                <v-btn
-                    class="ml-4"
-                    color="primary"
-                    text
-                    @click="signupDialog = false; loginDialog = true"
-                >
-                  Sign In
-                </v-btn>
-              </v-row>
-            </v-container>
-          </v-card-text>
-        </v-card>
-      </v-dialog>
-    </v-row>
+
+    <login-dialog ref="loginDialog" :show-signup="showSignup"/>
+    <signup-dialog ref="signupDialog" :show-login="showLogin"/>
 
     <div id="optionsMenu" class="pa-5 rounded-lg dark light--text backdrop">
       <div class="logo">
         <img :src="require('@/assets/logo.png')" height="auto" width="auto">
       </div>
+
       <v-chip
-          class="backdrop"
+          v-if="account"
+          class="rounded-xl font-weight-bold backdrop"
+          style="width: 100%;cursor: pointer"
+          color="primary"
+          label
+      >
+        <v-icon left>
+          mdi-account
+        </v-icon>
+        <div
+            class="px-2 ml-auto rounded-lg primary darken-1"
+        >
+          {{ account.username }}
+        </div>
+      </v-chip>
+
+      <v-chip
+          class="mt-2 font-weight-bold backdrop"
           style="width: 100%;cursor: pointer"
           color="primary"
           text-color="white"
       >
+        <v-icon left large class="d-inline-flex justify-start">$nanoIcon</v-icon>
         <div
-            class="px-2 rounded-lg primary darken-1"
+            class="px-2 ml-auto rounded-lg primary darken-1"
         >
           {{ funds.toLocaleString() }}
         </div>
-        <v-icon large class="d-inline-flex justify-end" style="width: 100%">$nanoIcon</v-icon>
       </v-chip>
+
       <div class="mt-2">
         <div class="pa-4 rounded-lg float-right" :style="{ backgroundColor: color, border: '2px solid ' +  this.$vuetify.theme.themes.light.secondary}" style="width: 100%;cursor: pointer" @click="$refs.colorPicker.click()">
           <input hidden ref="colorPicker" type="color" @change="changeColor">
@@ -168,24 +75,21 @@
 
 <script>
   import Snackbar from "@/components/Snackbar";
-  import md5 from "md5";
+  import SignupDialog from "@/components/SignupDialog";
+  import LoginDialog from "@/components/LoginDialog";
+
   export default {
     name: 'HelloWorld',
     components: {
+      LoginDialog,
+      SignupDialog,
       Snackbar,
-      md5
     },
     props: ['nightMode'],
     data: () => ({
-      SALT: 'Here comes the sun',
+      LOCALSTORAGE_COLLECTION: 'Pixnano',
       account: {},
       jwtToken: '',
-      signupDialog: true,
-      signupValid: false,
-      signupSuccess: false,
-      signupError: '',
-      loginDialog: false,
-      loginValid: true,
       authentication: {
         username: '',
         email: '',
@@ -216,7 +120,7 @@
       snackbar: {
         enabled: '',
         string: '',
-        timeout: 2000,
+        timeout: 4000,
         type: ''
       },
     }),
@@ -225,20 +129,18 @@
         console.log('socket connected')
       },
       authenticated({account, token}) {
-        this.signupSuccess = true;
         this.account = account;
-        this.jwtToken = token;
-        setTimeout(() => {
-          this.signupDialog = false;
-          this.signupSuccess = false;
-        }, 2000);
+        this.setToken(token);
+        this.alert('Authenticated successfully!', 'success');
+        this.hideLogin();
+        this.hideSignup();
       },
       alert(string) {
         this.alert(string, 'error');
       }
     },
     methods: {
-      alert(string, type = '', timeout = 2000) {
+      alert(string, type = '', timeout = 4000) {
         this.snackbar = {
           string,
           type,
@@ -246,11 +148,40 @@
         };
         this.$refs.snackbar.enable();
       },
-      createAccount() {
-        this.signupError = '';
-        const hashedPassword = md5(this.authentication.password + this.SALT);
-        this.authentication.password = hashedPassword;
-        this.$socket.emit('signup', this.authentication );
+      showLogin() {
+        this.$refs.loginDialog.enable();
+      },
+      hideLogin() {
+        this.$refs.loginDialog.disable();
+      },
+      showSignup() {
+        this.$refs.signupDialog.enable();
+      },
+      hideSignup() {
+        this.$refs.signupDialog.disable();
+      },
+      setToken(token) {
+        this.jwtToken = token;
+        localStorage.setItem(this.LOCALSTORAGE_COLLECTION, this.jwtToken);
+      },
+      getToken() {
+        this.jwtToken = localStorage.getItem(this.LOCALSTORAGE_COLLECTION);
+        if (this.jwtToken) {
+          this.authenticateJwt(this.jwtToken);
+        } else {
+          this.showSignup();
+        }
+      },
+      deleteToken() {
+        this.jwtToken = '';
+        localStorage.removeItem(this.LOCALSTORAGE_COLLECTION);
+      },
+      logout() {
+        this.deleteToken();
+        this.account = {};
+      },
+      authenticateJwt(jwtToken) {
+        this.$socket.emit('authenticate-jwt', jwtToken);
       },
       handleLeftClick(e) {
         if (this.editMode) { this.paintPixel(e) } else { this.startDragging(e) }
@@ -345,6 +276,7 @@
     },
     mounted() {
       this.renderGrid();
+      this.getToken();
     }
   }
 </script>

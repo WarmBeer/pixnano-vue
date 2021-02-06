@@ -8,10 +8,10 @@
 
     <template v-slot:action="{ attrs }">
       <v-btn
-          color="blue"
+          color="rgba(255, 255, 255, 0.8)"
           text
           v-bind="attrs"
-          @click="snackbar = false"
+          @click="enabled = false"
       >
         Close
       </v-btn>
