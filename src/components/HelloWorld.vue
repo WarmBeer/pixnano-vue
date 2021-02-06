@@ -1,5 +1,122 @@
 <template>
   <div>
+    <snackbar ref="snackbar" :string="snackbar.string" :timeout="snackbar.timeout" :type="snackbar.type"/>
+    <v-row justify="center">
+      <v-dialog
+          v-model="signupDialog"
+          persistent
+          max-width="600px"
+          style="z-index: 10"
+      >
+        <v-card>
+          <v-toolbar
+              flat
+              dark
+              color="primary"
+          >
+            <v-toolbar-title>Create New Account</v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-btn
+                icon
+                dark
+                @click="signupDialog = false"
+            >
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </v-toolbar>
+          <v-card-text>
+            <v-container>
+              <v-row>
+                <v-form
+                    class="mt-4"
+                    style="width: 100%"
+                    ref="form"
+                    v-model="signupValid"
+                >
+                  <v-col cols="12">
+                    <v-text-field
+                        solo
+                        flat
+                        dense
+                        background-color="light"
+                        v-model="authentication.username"
+                        label="Username*"
+                        :counter="20"
+                        :rules="[v => !!v || 'Username is required.', v => (v && v.length <= 20 && v.length >= 8) || 'Username can be min 8 and max 20 characters.', v => /^(?=[a-zA-Z0-9._]{8,20}$)(?!.*[_.]{2})[^_.].*[^_.]$/.test(v) || 'Illegal characters or wrong format.']"
+                        required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                        solo
+                        flat
+                        dense
+                        background-color="light"
+                        v-model="authentication.email"
+                        label="Email*"
+                        :counter="20"
+                        :rules="[v => !!v || 'Email is required.', v => (v && v.length <= 64 && v.length >= 4) || 'Email can be min 4 and max 64 characters.', v => /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/.test(v) || 'Illegal characters or wrong format.']"
+                        required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                        solo
+                        flat
+                        dense
+                        background-color="light"
+                        v-model="authentication.password"
+                        label="Password*"
+                        type="password"
+                        :counter="20"
+                        :rules="[v => !!v || 'Password is required.', v => (v && v.length <= 20 && v.length >= 8) || 'Password can be min 8 and max 20 characters.']"
+                        required
+                    ></v-text-field>
+                  </v-col>
+                  <v-alert
+                      v-if="signupSuccess"
+                      dense
+                      text
+                      type="success"
+                  >
+                    Account created <strong>successfully.</strong> Please <strong>wait a moment.</strong>
+                  </v-alert>
+                  <v-alert
+                      v-if="signupError"
+                      dense
+                      text
+                      type="error"
+                  >
+                    <strong>Error.</strong> {{ signupError }}
+                  </v-alert>
+                </v-form>
+              </v-row>
+              <v-row class="mt-4">
+                <small>*indicates required field</small>
+              </v-row>
+              <v-row>
+                <v-btn
+                    color="primary"
+                    :disabled="!signupValid"
+                    @click="createAccount"
+                >
+                  Create New Account
+                </v-btn>
+                <v-btn
+                    class="ml-4"
+                    color="primary"
+                    text
+                    @click="signupDialog = false; loginDialog = true"
+                >
+                  Sign In
+                </v-btn>
+              </v-row>
+            </v-container>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
+    </v-row>
+
     <div id="optionsMenu" class="pa-5 rounded-lg dark light--text backdrop">
       <div class="logo">
         <img :src="require('@/assets/logo.png')" height="auto" width="auto">
@@ -50,12 +167,30 @@
 </template>
 
 <script>
+  import Snackbar from "@/components/Snackbar";
+  import md5 from "md5";
   export default {
     name: 'HelloWorld',
     components: {
+      Snackbar,
+      md5
     },
     props: ['nightMode'],
     data: () => ({
+      SALT: 'Here comes the sun',
+      account: {},
+      jwtToken: '',
+      signupDialog: true,
+      signupValid: false,
+      signupSuccess: false,
+      signupError: '',
+      loginDialog: false,
+      loginValid: true,
+      authentication: {
+        username: '',
+        email: '',
+        password: '',
+      },
       funds: 7312,
       canvasSize: 256,
       color: '#000000',
@@ -78,16 +213,45 @@
         deltaX: 0,
         deltaY: 0,
       },
+      snackbar: {
+        enabled: '',
+        string: '',
+        timeout: 2000,
+        type: ''
+      },
     }),
     sockets: {
-      connect: function () {
+      connect() {
         console.log('socket connected')
       },
-      customEmit: function () {
-        console.log('this method was fired by the socket server. eg: io.emit("customEmit", data)')
+      authenticated({account, token}) {
+        this.signupSuccess = true;
+        this.account = account;
+        this.jwtToken = token;
+        setTimeout(() => {
+          this.signupDialog = false;
+          this.signupSuccess = false;
+        }, 2000);
+      },
+      alert(string) {
+        this.alert(string, 'error');
       }
     },
     methods: {
+      alert(string, type = '', timeout = 2000) {
+        this.snackbar = {
+          string,
+          type,
+          timeout
+        };
+        this.$refs.snackbar.enable();
+      },
+      createAccount() {
+        this.signupError = '';
+        const hashedPassword = md5(this.authentication.password + this.SALT);
+        this.authentication.password = hashedPassword;
+        this.$socket.emit('signup', this.authentication );
+      },
       handleLeftClick(e) {
         if (this.editMode) { this.paintPixel(e) } else { this.startDragging(e) }
       },
@@ -202,10 +366,14 @@ img {
 
 #optionsMenu {
   z-index: 5;
-  width: 216px;
+  width: 196px;
   position: absolute;
   left: 1rem;
   top: 1rem;
+  /*
+  backdrop-filter: blur(8px);
+  background-color: rgba(0, 0, 52, .8)!important;
+   */
 }
 
 .logo {
