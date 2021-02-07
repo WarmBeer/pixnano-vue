@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div id="canvas-container">
     <snackbar ref="snackbar" :string="snackbar.string" :timeout="snackbar.timeout" :type="snackbar.type"/>
 
     <login-dialog ref="loginDialog" :show-signup="showSignup"/>
@@ -11,7 +11,7 @@
       </div>
 
       <v-chip
-          v-if="account"
+          v-if="account.username"
           class="rounded-xl font-weight-bold backdrop"
           style="width: 100%;cursor: pointer"
           color="primary"
@@ -48,26 +48,24 @@
       </div>
       <v-btn id="toggleMode" class="mt-2 rounded-lg primary backdrop" width="100%" @click="editMode = !editMode">{{ editMode ? 'Edit Mode' : 'Viewing Mode' }}</v-btn>
       <v-btn id="toggleGrid" class="mt-2 rounded-lg primary backdrop" width="100%" @click="showGrid = !showGrid">{{ showGrid ? 'Grid: ON' : 'Grid: Off' }}</v-btn>
+      <v-btn id="centerCanvas" class="mt-2 rounded-lg primary backdrop" width="100%" @click="centerZoomController">Center Canvas</v-btn>
       <v-btn id="toggleNightMode" class="mt-2 rounded-lg light backdrop" width="100%" @click="$emit('update:nightMode', !nightMode);">{{ nightMode ? 'Dark Theme' : 'Light Theme' }}</v-btn>
     </div>
 
-    <div id="canvas-container">
-      <div
-          id="zoom-controller"
-          :style="{ transform: `scale(${zoom.zoomIntensity})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px', cursor: editMode ? (movement.dragging ? 'move' : 'default') : 'move' }"
-          @contextmenu.prevent
-          @mousedown.left="handleLeftClick"
-          @mousedown.right="startDragging"
-          @mouseup.left="endDragging"
-          @mouseup.right="endDragging"
-          @mouseleave="endDragging"
-          @mousemove="moveCanvasContainer"
-          @wheel.prevent="zoomCanvasContainer"
-      >
-        <div id="camera-controller" :style="{height: canvasSize + 'px', width: canvasSize + 'px'}">
-          <canvas id="canvas" :height="canvasSize" :width="canvasSize"/>
-          <canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }" :height="canvasSize" :width="canvasSize"/>
-        </div>
+    <div
+        id="canvas-controller"
+        :style="{ transform: `scale(${zoom.zoomIntensity})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px', cursor: editMode ? (movement.dragging ? 'move' : 'default') : 'move' }"
+        @contextmenu.prevent
+        @mousedown.left="handleLeftClick"
+        @mousedown.right="startDragging"
+        @mouseup.left="endDragging"
+        @mouseup.right="endDragging"
+        @mouseleave="endDragging"
+        @mousemove="moveCanvasContainer"
+        @wheel.prevent="zoomCanvasContainer"
+    >
+      <div id="canvas-wrapper" :style="{width: (canvas.dimensions.x || defaultCanvasDimension) + 'px', height: (canvas.dimensions.y || defaultCanvasDimension) + 'px'}">
+        <canvas id="canvas" :width="canvas.dimensions.x || defaultCanvasDimension" :height="canvas.dimensions.y || defaultCanvasDimension"/><canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }" :width="canvas.dimensions.x || defaultCanvasDimension" :height="canvas.dimensions.y || defaultCanvasDimension"/>
       </div>
     </div>
   </div>
@@ -79,7 +77,7 @@
   import LoginDialog from "@/components/LoginDialog";
 
   export default {
-    name: 'HelloWorld',
+    name: 'MainView',
     components: {
       LoginDialog,
       SignupDialog,
@@ -96,7 +94,17 @@
         password: '',
       },
       funds: 7312,
-      canvasSize: 256,
+      defaultCanvasDimension: 256,
+      canvas: {
+        name: '',
+        dimensions: {
+          x: 0,
+          y: 0,
+        },
+        data: [],
+        created: 0,
+        updated: 0
+      },
       color: '#000000',
       scale: 1,
       editMode: false,
@@ -126,7 +134,7 @@
     }),
     sockets: {
       connect() {
-        console.log('socket connected')
+        console.log('socket connected.')
       },
       authenticated({account, token}) {
         this.account = account;
@@ -137,9 +145,22 @@
       },
       alert(string) {
         this.alert(string, 'error');
+      },
+      canvas(canvas) {
+        this.canvas = canvas;
+        this.centerZoomController();
+        this.renderCanvas();
+        this.renderGrid();
       }
     },
     methods: {
+      centerZoomController() {
+        const CANVAS_CONTAINER = document.getElementById("canvas-container");
+        const CANVAS_CONTAINER_BOUNDS = CANVAS_CONTAINER.getBoundingClientRect();
+
+        this.movement.offsetX = (CANVAS_CONTAINER_BOUNDS.width - this.canvas.dimensions.x) / 2;
+        this.movement.offsetY = (CANVAS_CONTAINER_BOUNDS.height - this.canvas.dimensions.x) / 2;
+      },
       alert(string, type = '', timeout = 4000) {
         this.snackbar = {
           string,
@@ -187,18 +208,18 @@
         if (this.editMode) { this.paintPixel(e) } else { this.startDragging(e) }
       },
       paintPixel(e) {
-        const CAMERA_CONTROLLER = document.getElementById("camera-controller");
+        //const CAMERA_CONTROLLER = document.getElementById("camera-controller");
         const CANVAS = document.getElementById("canvas");
         const CANVAS_CTX = CANVAS.getContext("2d");
-        const OFFSET = CAMERA_CONTROLLER.getBoundingClientRect();
-        const xPosition = Math.floor(((e.clientX - OFFSET.left) / this.zoom.zoomIntensity) / this.scale)
-        const yPosition = Math.floor(((e.clientY - OFFSET.top) / this.zoom.zoomIntensity) / this.scale)
+        const CANVAS_BOUNDS = CANVAS.getBoundingClientRect();
+        const xPosition = Math.floor(((e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity) / this.scale)
+        const yPosition = Math.floor(((e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity) / this.scale)
 
         CANVAS_CTX.fillStyle = this.color
         CANVAS_CTX.fillRect(xPosition * this.scale, yPosition * this.scale, this.scale, this.scale)
 
         console.log("Clicked!", xPosition, yPosition, this.zoom.zoomIntensity)
-        console.log("e!", ((e.clientX - OFFSET.left) / this.zoom.zoomIntensity), ((e.clientY - OFFSET.top) / this.zoom.zoomIntensity), this.zoom.zoomIntensity)
+        console.log("e!", ((e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity), ((e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity), this.zoom.zoomIntensity)
       },
       changeColor(e) {
         this.color = e.target.value;
@@ -214,8 +235,8 @@
         this.movement.offsetY += this.movement.deltaY;
         this.movement.deltaX = 0;
         this.movement.deltaY = 0;
-        this.movement.originX = (this.canvasSize - this.movement.offsetX)/5;
-        this.movement.originY = (this.canvasSize - this.movement.offsetY)/5;
+        //this.movement.originX = (this.this.canvas.dimensions.x - this.movement.offsetX) / 5;
+        //this.movement.originY = (this.this.canvas.dimensions.y - this.movement.offsetY) / 5;
       },
       moveCanvasContainer(e) {
         if (this.movement.dragging) {
@@ -237,11 +258,11 @@
           if(this.zoom.zoomIntensity < minZoom) this.zoom.zoomIntensity = minZoom;
         }
       },
-      renderDataOnCanvas(canvasData) {
+      renderCanvas() {
         const CANVAS = document.getElementById("canvas");
         const CANVAS_CTX = CANVAS.getContext("2d");
 
-        canvasData.forEach((row, rowIndex) => {
+        this.canvas.data.forEach((row, rowIndex) => {
           row.forEach((col, colIndex) => {
             CANVAS_CTX.fillStyle = col
             CANVAS_CTX.fillRect(colIndex * this.scale, rowIndex * this.scale, this.scale, this.scale)
@@ -275,7 +296,6 @@
       }
     },
     mounted() {
-      this.renderGrid();
       this.getToken();
     }
   }
@@ -302,10 +322,6 @@ img {
   position: absolute;
   left: 1rem;
   top: 1rem;
-  /*
-  backdrop-filter: blur(8px);
-  background-color: rgba(0, 0, 52, .8)!important;
-   */
 }
 
 .logo {
@@ -323,13 +339,13 @@ canvas {
   position: absolute;
 }
 
-#zoom-controller {
-  position: relative;
+#canvas-controller {
+  position: absolute;
   transform-origin: center;
   z-index: 1;
 }
 
-#camera-controller {
+#canvas-wrapper {
   position: relative;
 }
 
@@ -344,18 +360,11 @@ canvas {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
-  align-items: center;
-  display: flex;
-  justify-content: center;
   overflow: hidden;
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
   right: 0;
-}
-
-#camera-controller {
-  position: relative;
 }
 </style>
