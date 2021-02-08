@@ -23,8 +23,14 @@ export default {
 </script>
 
 <style>
-html, body { padding: 0; margin: 0; width: 100%; height: 100%; }
-body {overflow: hidden}
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0px;
+  border: 0;
+  overflow: hidden; /*  Disable scrollbars */
+  display: block;  /* No floating content on sides */
+}
 
 ::-webkit-scrollbar {
   width: 0px;  /* remove scrollbar space */

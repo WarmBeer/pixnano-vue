@@ -5,7 +5,7 @@
     <login-dialog ref="loginDialog" :show-signup="showSignup"/>
     <signup-dialog ref="signupDialog" :show-login="showLogin"/>
 
-    <div id="optionsMenu" class="pa-5 rounded-lg dark light--text backdrop">
+    <div id="optionsMenu" class="pa-5 rounded-lg light--text backdrop" :class="this.nightMode ? 'grey darken-4' : 'dark'">
       <div class="logo">
         <img :src="require('@/assets/logo.png')" height="auto" width="auto">
       </div>
@@ -28,6 +28,7 @@
       </v-chip>
 
       <v-chip
+          v-if="account.username"
           class="mt-2 font-weight-bold backdrop"
           style="width: 100%;cursor: pointer"
           color="primary"
@@ -37,7 +38,7 @@
         <div
             class="px-2 ml-auto rounded-lg primary darken-1"
         >
-          {{ funds.toLocaleString() }}
+          {{ account._funds ? account._funds.toLocaleString() : 0 }}
         </div>
       </v-chip>
 
@@ -65,7 +66,8 @@
         @wheel.prevent="zoomCanvasContainer"
     >
       <div id="canvas-wrapper" :style="{width: (canvas.dimensions.x || defaultCanvasDimension) + 'px', height: (canvas.dimensions.y || defaultCanvasDimension) + 'px'}">
-        <canvas id="canvas" :width="canvas.dimensions.x || defaultCanvasDimension" :height="canvas.dimensions.y || defaultCanvasDimension"/><canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }" :width="canvas.dimensions.x || defaultCanvasDimension" :height="canvas.dimensions.y || defaultCanvasDimension"/>
+        <canvas id="canvas" :width="canvas.dimensions.x || defaultCanvasDimension" :height="canvas.dimensions.y || defaultCanvasDimension"/>
+        <canvas id="grid" :style="{ zIndex: showGrid ? 4 : -10 }" :width="canvas.dimensions.x || defaultCanvasDimension" :height="canvas.dimensions.y || defaultCanvasDimension"/>
       </div>
     </div>
   </div>
@@ -86,15 +88,17 @@
     props: ['nightMode'],
     data: () => ({
       LOCALSTORAGE_COLLECTION: 'Pixnano',
-      account: {},
+      account: {
+        username: '',
+        funds: 0,
+      },
       jwtToken: '',
       authentication: {
         username: '',
         email: '',
         password: '',
       },
-      funds: 7312,
-      defaultCanvasDimension: 256,
+      defaultCanvasDimension: 256, //todo: Fix dynamic grid canvas.
       canvas: {
         name: '',
         dimensions: {
@@ -143,14 +147,18 @@
         this.hideLogin();
         this.hideSignup();
       },
+      logout() {
+        this.logout();
+        this.getToken();
+      },
       alert(string) {
         this.alert(string, 'error');
       },
       canvas(canvas) {
         this.canvas = canvas;
-        this.centerZoomController();
         this.renderCanvas();
         this.renderGrid();
+        this.centerZoomController();
       }
     },
     methods: {
@@ -208,18 +216,31 @@
         if (this.editMode) { this.paintPixel(e) } else { this.startDragging(e) }
       },
       paintPixel(e) {
-        //const CAMERA_CONTROLLER = document.getElementById("camera-controller");
         const CANVAS = document.getElementById("canvas");
         const CANVAS_CTX = CANVAS.getContext("2d");
         const CANVAS_BOUNDS = CANVAS.getBoundingClientRect();
         const xPosition = Math.floor(((e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity) / this.scale)
         const yPosition = Math.floor(((e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity) / this.scale)
 
-        CANVAS_CTX.fillStyle = this.color
-        CANVAS_CTX.fillRect(xPosition * this.scale, yPosition * this.scale, this.scale, this.scale)
+        if (this.account._funds >= this.getPixelPrice(xPosition, yPosition)) {
+          CANVAS_CTX.fillStyle = this.color
+          CANVAS_CTX.fillRect(xPosition * this.scale, yPosition * this.scale, this.scale, this.scale)
+          this.$socket.emit('pixel', { x: xPosition, y: yPosition, color: this.color });
+        } else {
+          this.alert('Insufficient funds!', 'error');
+        }
 
         console.log("Clicked!", xPosition, yPosition, this.zoom.zoomIntensity)
-        console.log("e!", ((e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity), ((e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity), this.zoom.zoomIntensity)
+      },
+      getPixelPrice(x, y) {
+        let price = 1;
+
+        if (this.canvas.data[x] && this.canvas.data[x][y]) {
+          const pixel = this.canvas.data[x][y];
+          price = (pixel.purchases * 2) || 1;
+        }
+
+        return price;
       },
       changeColor(e) {
         this.color = e.target.value;
@@ -264,8 +285,8 @@
 
         this.canvas.data.forEach((row, rowIndex) => {
           row.forEach((col, colIndex) => {
-            CANVAS_CTX.fillStyle = col
-            CANVAS_CTX.fillRect(colIndex * this.scale, rowIndex * this.scale, this.scale, this.scale)
+            CANVAS_CTX.fillStyle = col.color;
+            CANVAS_CTX.fillRect(colIndex * this.scale, rowIndex * this.scale, this.scale, this.scale);
           })
         })
       },
@@ -302,11 +323,6 @@
 </script>
 
 <style lang="scss">
-html, body {
-  margin:0;
-  padding:0;
-}
-
 img {
   max-width: 100%;
   max-height: 100%;
@@ -350,7 +366,6 @@ canvas {
 }
 
 #grid {
-  z-index: 4;
   opacity: 0.25;
   pointer-events: none;
 }
