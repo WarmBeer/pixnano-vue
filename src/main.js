@@ -7,7 +7,7 @@ import VueSocketIO from 'vue-socket.io';
 
 Vue.config.productionTip = false
 
-export const SocketInstance = io('http://localhost:2600');
+export const SocketInstance = io('http://pixnano.com:2600');
 
 Vue.use(new VueSocketIO({
   debug: true,
