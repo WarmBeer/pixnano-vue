@@ -49,7 +49,7 @@
       </div>
       <v-btn id="toggleMode" class="mt-2 rounded-lg primary backdrop" width="100%" @click="editMode = !editMode">{{ editMode ? 'Edit Mode' : 'Viewing Mode' }}</v-btn>
       <v-btn id="toggleGrid" class="mt-2 rounded-lg primary backdrop" width="100%" @click="showGrid = !showGrid">{{ showGrid ? 'Grid: ON' : 'Grid: Off' }}</v-btn>
-      <v-btn id="centerCanvas" class="mt-2 rounded-lg primary backdrop" width="100%" @click="centerZoomController">Center Canvas</v-btn>
+      <v-btn id="centerCanvas" class="mt-2 rounded-lg primary backdrop" width="100%" @click="resetCanvases">Center Canvas</v-btn>
       <v-btn id="toggleNightMode" class="mt-2 rounded-lg light backdrop" width="100%" @click="$emit('update:nightMode', !nightMode);">{{ nightMode ? 'Dark Theme' : 'Light Theme' }}</v-btn>
     </div>
 
@@ -66,8 +66,8 @@
         @wheel.prevent="zoomCanvasContainer"
     >
       <div id="canvas-wrapper" :style="{width: (canvas.dimensions.x || defaultCanvasDimension) + 'px', height: (canvas.dimensions.y || defaultCanvasDimension) + 'px'}">
-        <canvas id="canvas" :width="canvas.dimensions.x || defaultCanvasDimension" :height="canvas.dimensions.y || defaultCanvasDimension"/>
-        <canvas id="grid" :style="{ zIndex: showGrid ? 4 : -10 }" :width="canvas.dimensions.x || defaultCanvasDimension" :height="canvas.dimensions.y || defaultCanvasDimension"/>
+        <canvas id="canvas"/>
+        <canvas id="grid"/>
       </div>
     </div>
   </div>
@@ -98,7 +98,7 @@
         email: '',
         password: '',
       },
-      defaultCanvasDimension: 256, //todo: Fix dynamic grid canvas.
+      defaultCanvasDimension: 64,
       canvas: {
         name: '',
         dimensions: {
@@ -156,18 +156,26 @@
       },
       canvas(canvas) {
         this.canvas = canvas;
-        this.renderCanvas();
-        this.renderGrid();
-        this.centerZoomController();
+        this.resetCanvases();
       }
     },
     methods: {
-      centerZoomController() {
+      resetCanvases() {
         const CANVAS_CONTAINER = document.getElementById("canvas-container");
         const CANVAS_CONTAINER_BOUNDS = CANVAS_CONTAINER.getBoundingClientRect();
+        const CANVAS = document.getElementById("canvas");
+        const GRID = document.getElementById("grid");
 
         this.movement.offsetX = (CANVAS_CONTAINER_BOUNDS.width - this.canvas.dimensions.x) / 2;
         this.movement.offsetY = (CANVAS_CONTAINER_BOUNDS.height - this.canvas.dimensions.x) / 2;
+
+        CANVAS.width = this.canvas.dimensions.x;
+        GRID.width = this.canvas.dimensions.x;
+        CANVAS.height = this.canvas.dimensions.y;
+        GRID.height = this.canvas.dimensions.y;
+
+        this.renderCanvas();
+        this.renderGrid();
       },
       alert(string, type = '', timeout = 4000) {
         this.snackbar = {
@@ -283,12 +291,12 @@
         const CANVAS = document.getElementById("canvas");
         const CANVAS_CTX = CANVAS.getContext("2d");
 
-        this.canvas.data.forEach((row, rowIndex) => {
-          row.forEach((col, colIndex) => {
-            CANVAS_CTX.fillStyle = col.color;
-            CANVAS_CTX.fillRect(colIndex * this.scale, rowIndex * this.scale, this.scale, this.scale);
+        for (let x = 0; x < this.canvas.data.length; x++) {
+          this.canvas.data[x].forEach((pixel, y) => {
+            CANVAS_CTX.fillStyle = pixel.color;
+            CANVAS_CTX.fillRect(x * this.scale, y * this.scale, this.scale, this.scale);
           })
-        })
+        }
       },
       renderGrid() {
         const GRID = document.getElementById("grid");
@@ -296,8 +304,8 @@
         const GRID_COLOR_EVEN = '#D3D3D3';
         const GRID_COLOR_UNEVEN = '#FFFFFF';
 
-        for(let row = 0;row<500;row++){
-          for(let i = 0;i<500;i++) {
+        for(let row = 0;row<this.canvas.dimensions.y;row++){
+          for(let i = 0;i<this.canvas.dimensions.x;i++) {
             if(i%2===0) {
               if(row%2===0) {
                 GRID_CTX.fillStyle = GRID_COLOR_EVEN
