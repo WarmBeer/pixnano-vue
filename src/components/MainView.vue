@@ -4,6 +4,25 @@
 
     <login-dialog ref="loginDialog" :show-signup="showSignup"/>
     <signup-dialog ref="signupDialog" :show-login="showLogin"/>
+    <v-dialog
+        :value="!connected"
+        persistent
+        width="300"
+    >
+      <v-card
+          color="primary"
+          dark
+      >
+        <v-card-text>
+          Pixnano server is not responding..
+          <v-progress-linear
+              indeterminate
+              color="white"
+              class="mb-0"
+          ></v-progress-linear>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
 
     <div id="optionsMenu" class="pa-5 rounded-lg light--text backdrop" :class="this.nightMode ? 'grey darken-4' : 'dark'">
       <div class="logo">
@@ -53,6 +72,92 @@
       <v-btn id="toggleNightMode" class="mt-2 rounded-lg light backdrop" width="100%" @click="$emit('update:nightMode', !nightMode);">{{ nightMode ? 'Dark Theme' : 'Light Theme' }}</v-btn>
     </div>
 
+    <div v-if="canvas.data.length > 0" id="detailsMenu" class="pa-5 rounded-lg light--text backdrop" :class="this.nightMode ? 'grey darken-4' : 'dark'">
+      <v-chip
+          class="rounded-xl font-weight-bold backdrop"
+          style="width: 50%;cursor: pointer"
+          color="primary"
+          label
+      >
+        <div
+            class="px-2 mx-auto rounded-lg primary darken-1"
+        >
+          {{ `X: ${selectedPixel.x}` }}
+        </div>
+      </v-chip>
+      <v-chip
+          class="rounded-xl font-weight-bold backdrop"
+          style="width: 50%;cursor: pointer"
+          color="primary"
+          label
+      >
+        <div
+            class="px-2 mx-auto rounded-lg primary darken-1"
+        >
+          {{ `Y: ${selectedPixel.y}` }}
+        </div>
+      </v-chip>
+      <v-chip
+          class="mt-2 rounded-xl font-weight-bold backdrop"
+          style="width: 100%;cursor: pointer"
+          color="primary"
+          label
+      >
+        <v-icon left>
+          mdi-account
+        </v-icon>
+        <div
+            class="px-2 ml-auto rounded-lg primary darken-1"
+        >
+          {{ canvas.data[selectedPixel.x][selectedPixel.y].owner ? canvas.data[selectedPixel.x][selectedPixel.y].owner : '' }}
+        </div>
+      </v-chip>
+      <v-chip
+          class="mt-2 font-weight-bold backdrop"
+          style="width: 100%;cursor: pointer"
+          color="primary"
+          text-color="white"
+      >
+        <v-icon left large class="d-inline-flex justify-start">$nanoIcon</v-icon>
+        <div
+            class="px-2 ml-auto rounded-lg primary darken-1"
+        >
+          {{ canvas.data[selectedPixel.x][selectedPixel.y].price ? canvas.data[selectedPixel.x][selectedPixel.y].price : 0 }}
+        </div>
+      </v-chip>
+      <v-chip
+          class="mt-2 font-weight-bold backdrop"
+          style="width: 100%;cursor: pointer"
+          color="primary"
+          text-color="white"
+      >
+        <v-icon left>
+          mdi-calendar
+        </v-icon>
+        <div
+            class="px-2 ml-auto rounded-lg primary darken-1"
+        >
+          {{ canvas.data[selectedPixel.x][selectedPixel.y].updated ? new Date(canvas.data[selectedPixel.x][selectedPixel.y].updated).toLocaleDateString() : 0 }}
+        </div>
+      </v-chip>
+      <v-chip
+          class="mt-2 font-weight-bold backdrop"
+          style="width: 100%;cursor: pointer"
+          color="primary"
+          text-color="white"
+      >
+        <v-icon left>
+          mdi-clock
+        </v-icon>
+        <div
+            class="px-2 ml-auto rounded-lg primary darken-1"
+        >
+          {{ canvas.data[selectedPixel.x][selectedPixel.y].updated ? new Date(canvas.data[selectedPixel.x][selectedPixel.y].updated).toLocaleTimeString() : 0 }}
+        </div>
+      </v-chip>
+    </div>
+
+
     <div
         id="canvas-controller"
         :style="{ transform: `scale(${zoom.zoomIntensity})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px', cursor: editMode ? (movement.dragging ? 'move' : 'default') : 'move' }"
@@ -62,12 +167,12 @@
         @mouseup.left="endDragging"
         @mouseup.right="endDragging"
         @mouseleave="endDragging"
-        @mousemove="moveCanvasContainer"
+        @mousemove="updateMousePosition"
         @wheel.prevent="zoomCanvasContainer"
     >
       <div id="canvas-wrapper" :style="{width: (canvas.dimensions.x || defaultCanvasDimension) + 'px', height: (canvas.dimensions.y || defaultCanvasDimension) + 'px'}">
         <canvas id="canvas"/>
-        <canvas id="grid"/>
+        <canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }"/>
       </div>
     </div>
   </div>
@@ -88,6 +193,7 @@
     props: ['nightMode'],
     data: () => ({
       LOCALSTORAGE_COLLECTION: 'Pixnano',
+      connected: false,
       account: {
         username: '',
         funds: 0,
@@ -135,10 +241,18 @@
         timeout: 4000,
         type: ''
       },
+      selectedPixel: {
+        x: 0,
+        y: 0
+      }
     }),
     sockets: {
-      connect() {
-        console.log('socket connected.')
+      connect() {},
+      disconnect() {
+        this.connected = false;
+      },
+      account(account) {
+        this.account = account;
       },
       authenticated({account, token}) {
         this.account = account;
@@ -155,8 +269,12 @@
         this.alert(string, 'error');
       },
       canvas(canvas) {
+        this.connected = true;
         this.canvas = canvas;
         this.resetCanvases();
+      },
+      pixel(pixel) {
+        this.canvas.data[pixel.x][pixel.y] = pixel;
       }
     },
     methods: {
@@ -226,22 +344,19 @@
       handleLeftClick(e) {
         if (this.editMode) { this.paintPixel(e) } else { this.startDragging(e) }
       },
-      paintPixel(e) {
+      paintPixel() {
         const CANVAS = document.getElementById("canvas");
         const CANVAS_CTX = CANVAS.getContext("2d");
-        const CANVAS_BOUNDS = CANVAS.getBoundingClientRect();
-        const xPosition = Math.floor(((e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity) / this.scale)
-        const yPosition = Math.floor(((e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity) / this.scale)
 
-        if (this.account._funds >= this.getPixelPrice(xPosition, yPosition)) {
+        if (this.account._funds >= this.getPixelPrice(this.selectedPixel.x, this.selectedPixel.y)) {
           CANVAS_CTX.fillStyle = this.color
-          CANVAS_CTX.fillRect(xPosition * this.scale, yPosition * this.scale, this.scale, this.scale)
-          this.$socket.emit('pixel', { x: xPosition, y: yPosition, color: this.color });
+          CANVAS_CTX.fillRect(this.selectedPixel.x * this.scale, this.selectedPixel.y * this.scale, this.scale, this.scale)
+          this.$socket.emit('pixel', { x: this.selectedPixel.x, y: this.selectedPixel.y, color: this.color });
         } else {
           this.alert('Insufficient funds!', 'error');
         }
 
-        console.log("Clicked!", xPosition, yPosition, this.zoom.zoomIntensity)
+        console.log("Clicked!", this.selectedPixel.x, this.selectedPixel.y, this.zoom.zoomIntensity)
       },
       getPixelPrice(x, y) {
         let price = 1;
@@ -271,10 +386,27 @@
         //this.movement.originY = (this.this.canvas.dimensions.y - this.movement.offsetY) / 5;
       },
       moveCanvasContainer(e) {
-        if (this.movement.dragging) {
-          this.movement.deltaX = e.x - this.movement.startX;
-          this.movement.deltaY = e.y - this.movement.startY;
+        this.movement.deltaX = e.x - this.movement.startX;
+        this.movement.deltaY = e.y - this.movement.startY;
+      },
+      updateMousePosition(e) {
+        const CANVAS = document.getElementById("canvas");
+        const CANVAS_BOUNDS = CANVAS.getBoundingClientRect();
+        let x = Math.floor(((e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity) / this.scale);
+        let y = Math.floor(((e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity) / this.scale) - 1;
+
+        if (x < 0 || x > this.canvas.dimensions.x) {
+          x = 0;
         }
+
+        if (y < 0 || y > this.canvas.dimensions.y) {
+          y = 0;
+        }
+
+        this.selectedPixel.x = x;
+        this.selectedPixel.y = y;
+
+        if (this.movement.dragging) this.moveCanvasContainer(e);
       },
       zoomCanvasContainer(e) {
         let scrollDirection;
@@ -349,6 +481,14 @@ img {
   width: 196px;
   position: absolute;
   left: 1rem;
+  top: 1rem;
+}
+
+#detailsMenu {
+  z-index: 5;
+  width: 196px;
+  position: absolute;
+  right: 1rem;
   top: 1rem;
 }
 
