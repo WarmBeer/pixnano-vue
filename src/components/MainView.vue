@@ -52,7 +52,7 @@
             color="dark"
             tile
         >
-          <v-list dark flat dense color="primary">
+          <v-list dark flat dense color="red">
             <v-list-item-group>
               <v-list-item
                   @click="logout"
@@ -61,7 +61,7 @@
                   <v-icon>mdi-power</v-icon>
                 </v-list-item-icon>
                 <v-list-item-content>
-                  <v-list-item-title>Logout</v-list-item-title>
+                  <v-list-item-title>Sign Out</v-list-item-title>
                 </v-list-item-content>
               </v-list-item>
             </v-list-item-group>
@@ -84,11 +84,14 @@
         </div>
       </v-chip>
 
+      <v-btn v-if="!this.account.username" id="signIn" class=" rounded-lg primary backdrop" width="100%" @click="showLogin">Sign In</v-btn>
+
       <div class="mt-2">
         <div class="pa-4 rounded-lg float-right" :style="{ backgroundColor: color, border: '2px solid ' +  this.$vuetify.theme.themes.light.secondary}" style="width: 100%;cursor: pointer" @click="$refs.colorPicker.click()">
           <input hidden ref="colorPicker" type="color" @change="changeColor">
         </div>
       </div>
+
       <v-btn id="toggleMode" class="mt-2 rounded-lg primary backdrop" width="100%" @click="editMode = !editMode">{{ editMode ? 'Edit Mode' : 'Viewing Mode' }}</v-btn>
       <v-btn id="toggleGrid" class="mt-2 rounded-lg primary backdrop" width="100%" @click="showGrid = !showGrid">{{ showGrid ? 'Grid: ON' : 'Grid: Off' }}</v-btn>
       <v-btn id="centerCanvas" class="mt-2 rounded-lg primary backdrop" width="100%" @click="resetCanvases">Center Canvas</v-btn>
@@ -131,6 +134,7 @@
         </v-icon>
         <div
             class="px-2 ml-auto rounded-lg primary darken-1"
+            :style="{ color: (canvas.data[selectedPixel.x][selectedPixel.y].owner === this.account.username) ? '#1aff00' : 'white' }"
         >
           {{ canvas.data[selectedPixel.x][selectedPixel.y].owner ? canvas.data[selectedPixel.x][selectedPixel.y].owner : '' }}
         </div>
@@ -312,6 +316,7 @@
       },
       pixel(pixel) {
         this.canvas.data[pixel.x][pixel.y] = pixel;
+        this.drawPixel(pixel.x, pixel.y, pixel.color);
       }
     },
     methods: {
@@ -379,21 +384,23 @@
         this.$socket.emit('authenticate-jwt', jwtToken);
       },
       handleLeftClick(e) {
-        if (this.editMode) { this.paintPixel(e) } else { this.startDragging(e) }
+        if (this.editMode) { this.buyPixel(e) } else { this.startDragging(e) }
       },
-      paintPixel() {
+      drawPixel(x, y, color) {
         const CANVAS = document.getElementById("canvas");
         const CANVAS_CTX = CANVAS.getContext("2d");
 
+        CANVAS_CTX.fillStyle = color
+        CANVAS_CTX.fillRect(x * this.scale, y * this.scale, this.scale, this.scale)
+      },
+      buyPixel() {
         if (this.account._funds >= this.getPixelPrice(this.selectedPixel.x, this.selectedPixel.y)) {
-          CANVAS_CTX.fillStyle = this.color
-          CANVAS_CTX.fillRect(this.selectedPixel.x * this.scale, this.selectedPixel.y * this.scale, this.scale, this.scale)
+          this.drawPixel(this.selectedPixel.x, this.selectedPixel.y, this.color);
           this.$socket.emit('pixel', { x: this.selectedPixel.x, y: this.selectedPixel.y, color: this.color });
         } else {
           this.alert('Insufficient funds!', 'error');
         }
-
-        console.log("Clicked!", this.selectedPixel.x, this.selectedPixel.y, this.zoom.zoomIntensity)
+        //console.log("Clicked!", this.selectedPixel.x, this.selectedPixel.y, this.zoom.zoomIntensity)
       },
       getPixelPrice(x, y) {
         let price = 1;
