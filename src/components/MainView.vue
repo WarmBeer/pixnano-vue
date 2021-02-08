@@ -160,6 +160,9 @@
       }
     },
     methods: {
+      getCanvas() {
+        this.$socket.emit('canvas');
+      },
       resetCanvases() {
         const CANVAS_CONTAINER = document.getElementById("canvas-container");
         const CANVAS_CONTAINER_BOUNDS = CANVAS_CONTAINER.getBoundingClientRect();
@@ -326,6 +329,7 @@
     },
     mounted() {
       this.getToken();
+      this.getCanvas();
     }
   }
 </script>
