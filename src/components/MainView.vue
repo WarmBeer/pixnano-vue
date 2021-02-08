@@ -35,6 +35,7 @@
           style="width: 100%;cursor: pointer"
           color="primary"
           label
+          @click="accountMenu = !accountMenu"
       >
         <v-icon left>
           mdi-account
@@ -44,6 +45,28 @@
         >
           {{ account.username }}
         </div>
+        <v-card
+            v-if="accountMenu"
+            id="account-menu"
+            class="ml-2 rounded-lg backdrop-primary"
+            color="dark"
+            tile
+        >
+          <v-list dark flat dense color="primary">
+            <v-list-item-group>
+              <v-list-item
+                  @click="logout"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-power</v-icon>
+                </v-list-item-icon>
+                <v-list-item-content>
+                  <v-list-item-title>Logout</v-list-item-title>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list-item-group>
+          </v-list>
+        </v-card>
       </v-chip>
 
       <v-chip
@@ -155,6 +178,19 @@
           {{ canvas.data[selectedPixel.x][selectedPixel.y].updated ? new Date(canvas.data[selectedPixel.x][selectedPixel.y].updated).toLocaleTimeString() : 0 }}
         </div>
       </v-chip>
+      <v-chip
+          class="mt-2 rounded-xl font-weight-bold backdrop"
+          style="width: 100%;cursor: pointer"
+          :color="canvas.data[selectedPixel.x][selectedPixel.y].color ? canvas.data[selectedPixel.x][selectedPixel.y].color : '#FFF'"
+          label
+      >
+        <div
+            class="px-2 mx-auto rounded-lg"
+            style="background-color: rgba(0, 0, 0, 0.5);color: white"
+        >
+          {{ canvas.data[selectedPixel.x][selectedPixel.y].color ? canvas.data[selectedPixel.x][selectedPixel.y].color : '#FFF' }}
+        </div>
+      </v-chip>
     </div>
 
 
@@ -194,6 +230,7 @@
     data: () => ({
       LOCALSTORAGE_COLLECTION: 'Pixnano',
       connected: false,
+      accountMenu: false,
       account: {
         username: '',
         funds: 0,
@@ -472,6 +509,10 @@ img {
   max-height: 100%;
 }
 
+.v-chip {
+  overflow: visible!important;
+}
+
 .v-chip__content {
   width: 100%;
 }
@@ -482,6 +523,12 @@ img {
   position: absolute;
   left: 1rem;
   top: 1rem;
+}
+
+#account-menu {
+  position: absolute;
+  left: 100%;
+  z-index: 20;
 }
 
 #detailsMenu {
