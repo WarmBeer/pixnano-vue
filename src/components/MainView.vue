@@ -314,6 +314,11 @@
         this.canvas = canvas;
         this.resetCanvases();
       },
+      canvasUpdate(canvas) {
+        this.connected = true;
+        this.canvas = canvas;
+        this.renderCanvas();
+      },
       pixel(pixel) {
         this.canvas.data[pixel.x][pixel.y] = pixel;
         this.drawPixel(pixel.x, pixel.y, pixel.color);
