@@ -1,7 +1,7 @@
 <template>
   <div id="canvas-container">
+    <!--
     <snackbar ref="snackbar" :string="snackbar.string" :timeout="snackbar.timeout" :type="snackbar.type"/>
-
     <login-dialog ref="loginDialog" :show-signup="showSignup"/>
     <signup-dialog ref="signupDialog" :show-login="showLogin"/>
     <v-dialog
@@ -94,10 +94,9 @@
 
       <v-btn id="toggleMode" class="mt-2 rounded-lg primary backdrop" width="100%" @click="editMode = !editMode">{{ editMode ? 'Edit Mode' : 'Viewing Mode' }}</v-btn>
       <v-btn id="toggleGrid" class="mt-2 rounded-lg primary backdrop" width="100%" @click="showGrid = !showGrid">{{ showGrid ? 'Grid: ON' : 'Grid: Off' }}</v-btn>
-      <v-btn id="centerCanvas" class="mt-2 rounded-lg primary backdrop" width="100%" @click="resetCanvases">Center Canvas</v-btn>
+      <v-btn id="centerCanvas" class="mt-2 rounded-lg primary backdrop" width="100%" @click="centerCanvas">Center Canvas</v-btn>
       <v-btn id="toggleNightMode" class="mt-2 rounded-lg light backdrop" width="100%" @click="$emit('update:nightMode', !nightMode);">{{ nightMode ? 'Dark Theme' : 'Light Theme' }}</v-btn>
     </div>
-
     <div v-if="canvas.data.length > 0" id="detailsMenu" class="pa-5 rounded-lg light--text backdrop" :class="this.nightMode ? 'grey darken-4' : 'dark'">
       <v-chip
           class="rounded-xl font-weight-bold backdrop"
@@ -196,43 +195,46 @@
         </div>
       </v-chip>
     </div>
+-->
+    <!--
+            @mousedown.left="handleLeftClick"
+            @mousedown.right="startDragging"
+            @mouseup.left="endDragging"
+            @mouseup.right="endDragging"
+            @mouseleave="endDragging"
+            @mousemove.prevent="handleMouseMovement"
+            @wheel.prevent="zoomCanvasContainer"
+            -->
 
 
     <div
         id="canvas-controller"
-        :style="{ transform: `scale(${zoom.zoomIntensity})`, left: movement.dragging ? movement.offsetX + movement.deltaX + 'px' : movement.offsetX + 'px', top: movement.dragging ? movement.offsetY + movement.deltaY + 'px' : movement.offsetY + 'px', cursor: editMode ? (movement.dragging ? 'move' : 'default') : 'move' }"
+        :style="{ transform: `scale(${zoom.zoomIntensity})`, cursor: editMode ? (movement.dragging ? 'move' : 'default') : 'move' }"
         @contextmenu.prevent
-        @mousedown.left="handleLeftClick"
-        @mousedown.right="startDragging"
-        @mouseup.left="endDragging"
-        @mouseup.right="endDragging"
-        @mouseleave="endDragging"
-        @mousemove="updateMousePosition"
-        @wheel.prevent="zoomCanvasContainer"
+        @mousemove="handleMouseMovement"
+        @mousedown="handleMouseDown"
+        @mouseup="endDragging"
     >
-      <div id="canvas-wrapper" :style="{width: (canvas.dimensions.x || defaultCanvasDimension) + 'px', height: (canvas.dimensions.y || defaultCanvasDimension) + 'px'}">
-        <canvas id="canvas"/>
-        <canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }"/>
-      </div>
+      <canvas id="canvas"/>
+      <canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }"/>
     </div>
   </div>
 </template>
 
 <script>
-  import Snackbar from "@/components/Snackbar";
-  import SignupDialog from "@/components/SignupDialog";
-  import LoginDialog from "@/components/LoginDialog";
+
 
   export default {
     name: 'MainView',
     components: {
-      LoginDialog,
-      SignupDialog,
-      Snackbar,
     },
     props: ['nightMode'],
     data: () => ({
       LOCALSTORAGE_COLLECTION: 'Pixnano',
+      CANVAS_CONTAINER: '',
+      CANVAS_CONTROLLER: '',
+      CANVAS: '',
+      GRID: '',
       connected: false,
       accountMenu: false,
       account: {
@@ -245,7 +247,8 @@
         email: '',
         password: '',
       },
-      defaultCanvasDimension: 64,
+      defaultCanvasDimension: 256,
+      canvasScaleModifier: 1,
       canvas: {
         name: '',
         dimensions: {
@@ -257,13 +260,12 @@
         updated: 0
       },
       color: '#000000',
-      scale: 1,
       editMode: false,
       showGrid: true,
       zoom: {
-        zoomIntensity: 2,
-        maxZoom: 32,
-        minZoom: 1,
+        zoomIntensity: 1,
+        maxZoom: 16,
+        minZoom: 0.1,
       },
       movement: {
         dragging: false,
@@ -309,12 +311,16 @@
       alert(string) {
         this.alert(string, 'error');
       },
-      canvas(canvas) {
+      init(canvas) {
         this.connected = true;
         this.canvas = canvas;
-        this.resetCanvases();
+        this.resizeCanvas();
+        this.centerCanvas();
+        this.renderCanvas();
+        this.renderGrid();
       },
       canvasUpdate(canvas) {
+        if (canvas.data.length <= 0) return;
         this.connected = true;
         this.canvas = canvas;
         this.renderCanvas();
@@ -328,22 +334,26 @@
       getCanvas() {
         this.$socket.emit('canvas');
       },
-      resetCanvases() {
-        const CANVAS_CONTAINER = document.getElementById("canvas-container");
-        const CANVAS_CONTAINER_BOUNDS = CANVAS_CONTAINER.getBoundingClientRect();
-        const CANVAS = document.getElementById("canvas");
-        const GRID = document.getElementById("grid");
+      resizeCanvas() {
+        this.CANVAS_CONTROLLER.style.width = this.canvas.dimensions.x * this.canvasScaleModifier + 'px';
+        this.CANVAS.width = this.canvas.dimensions.x * this.canvasScaleModifier;
+        this.GRID.width = this.canvas.dimensions.x * this.canvasScaleModifier;
 
-        this.movement.offsetX = (CANVAS_CONTAINER_BOUNDS.width - this.canvas.dimensions.x) / 2;
-        this.movement.offsetY = (CANVAS_CONTAINER_BOUNDS.height - this.canvas.dimensions.x) / 2;
-
-        CANVAS.width = this.canvas.dimensions.x;
-        GRID.width = this.canvas.dimensions.x;
-        CANVAS.height = this.canvas.dimensions.y;
-        GRID.height = this.canvas.dimensions.y;
+        this.CANVAS_CONTROLLER.style.height = this.canvas.dimensions.y * this.canvasScaleModifier + 'px';
+        this.CANVAS.height = this.canvas.dimensions.y * this.canvasScaleModifier;
+        this.GRID.height = this.canvas.dimensions.y * this.canvasScaleModifier;
 
         this.renderCanvas();
         this.renderGrid();
+      },
+      centerCanvas() {
+        const CANVAS_CONTAINER_BOUNDS = this.CANVAS_CONTAINER.getBoundingClientRect();
+
+        this.movement.offsetX = (CANVAS_CONTAINER_BOUNDS.width - this.canvas.dimensions.x * this.canvasScaleModifier) / 2;
+        this.movement.offsetY = (CANVAS_CONTAINER_BOUNDS.height - this.canvas.dimensions.x * this.canvasScaleModifier) / 2;
+
+        this.CANVAS_CONTROLLER.style.left = this.movement.offsetX + 'px';
+        this.CANVAS_CONTROLLER.style.top = this.movement.offsetY + 'px';
       },
       alert(string, type = '', timeout = 4000) {
         this.snackbar = {
@@ -384,6 +394,7 @@
       logout() {
         this.deleteToken();
         this.account = {};
+        this.$socket.emit('logout');
       },
       authenticateJwt(jwtToken) {
         this.$socket.emit('authenticate-jwt', jwtToken);
@@ -392,30 +403,26 @@
         if (this.editMode) { this.buyPixel(e) } else { this.startDragging(e) }
       },
       drawPixel(x, y, color) {
-        const CANVAS = document.getElementById("canvas");
-        const CANVAS_CTX = CANVAS.getContext("2d");
+        const CANVAS_CTX = this.CANVAS.getContext("2d");
 
         CANVAS_CTX.fillStyle = color
-        CANVAS_CTX.fillRect(x * this.scale, y * this.scale, this.scale, this.scale)
+        CANVAS_CTX.fillRect(x * this.canvasScaleModifier, y * this.canvasScaleModifier, this.canvasScaleModifier, this.canvasScaleModifier)
       },
       buyPixel() {
-        if (this.account._funds >= this.getPixelPrice(this.selectedPixel.x, this.selectedPixel.y)) {
-          this.drawPixel(this.selectedPixel.x, this.selectedPixel.y, this.color);
-          this.$socket.emit('pixel', { x: this.selectedPixel.x, y: this.selectedPixel.y, color: this.color });
+        const x = this.selectedPixel.x;
+        const y = this.selectedPixel.y;
+        const color = this.color;
+
+        if (this.account['_funds'] >= this.getPixelPrice(x, y)) {
+          this.drawPixel(x, y, color);
+          this.$socket.emit('pixel', { x, y, color });
         } else {
           this.alert('Insufficient funds!', 'error');
         }
-        //console.log("Clicked!", this.selectedPixel.x, this.selectedPixel.y, this.zoom.zoomIntensity)
+        //console.log("Clicked!", x, y, this.zoom.zoomIntensity)
       },
       getPixelPrice(x, y) {
-        let price = 1;
-
-        if (this.canvas.data[x] && this.canvas.data[x][y]) {
-          const pixel = this.canvas.data[x][y];
-          price = (pixel.purchases * 2) || 1;
-        }
-
-        return price;
+        return this.canvas.data[x][y]['price'];
       },
       changeColor(e) {
         this.color = e.target.value;
@@ -431,31 +438,34 @@
         this.movement.offsetY += this.movement.deltaY;
         this.movement.deltaX = 0;
         this.movement.deltaY = 0;
+        this.movement.startX = 0;
+        this.movement.startY = 0;
         //this.movement.originX = (this.this.canvas.dimensions.x - this.movement.offsetX) / 5;
         //this.movement.originY = (this.this.canvas.dimensions.y - this.movement.offsetY) / 5;
       },
-      moveCanvasContainer(e) {
-        this.movement.deltaX = e.x - this.movement.startX;
-        this.movement.deltaY = e.y - this.movement.startY;
+      handleMouseMovement(e) {
+        this.updateMousePosition(e);
+        this.updateMouseDeltaMovement(e);
+      },
+      updateMouseDeltaMovement(e) {
+        this.movement.deltaX = this.movement.dragging ? e.clientX - this.movement.startX : 0;
+        this.movement.deltaY = this.movement.dragging ? e.clientY - this.movement.startY : 0;
+        this.CANVAS_CONTROLLER.style.left = this.movement.offsetX + this.movement.deltaX + 'px';
+        this.CANVAS_CONTROLLER.style.top = this.movement.offsetY + this.movement.deltaY + 'px';
       },
       updateMousePosition(e) {
-        const CANVAS = document.getElementById("canvas");
-        const CANVAS_BOUNDS = CANVAS.getBoundingClientRect();
-        let x = Math.floor(((e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity) / this.scale);
-        let y = Math.floor(((e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity) / this.scale) - 1;
+        const CANVAS_BOUNDS = this.CANVAS.getBoundingClientRect();
+        // Clamp between 0 and 255, we don't want pixels out of bounds
+        let x = (e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity / this.canvasScaleModifier;
+        let y = (e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity / this.canvasScaleModifier;
 
-        if (x < 0 || x > this.canvas.dimensions.x) {
-          x = 0;
-        }
-
-        if (y < 0 || y > this.canvas.dimensions.y) {
-          y = 0;
-        }
-
-        this.selectedPixel.x = x;
-        this.selectedPixel.y = y;
-
-        if (this.movement.dragging) this.moveCanvasContainer(e);
+        this.selectedPixel.x = Math.min(Math.max(Math.round(x), 0), this.canvas.dimensions.x - 1);
+        this.selectedPixel.y = Math.min(Math.max(Math.round(y), 0), this.canvas.dimensions.y - 1);
+      },
+      handleMouseDown(e) {
+        this.movement.dragging = true;
+        this.movement.startX = e.clientX;
+        this.movement.startY = e.clientY;
       },
       zoomCanvasContainer(e) {
         let scrollDirection;
@@ -472,19 +482,15 @@
         }
       },
       renderCanvas() {
-        const CANVAS = document.getElementById("canvas");
-        const CANVAS_CTX = CANVAS.getContext("2d");
-
-        for (let x = 0; x < this.canvas.data.length; x++) {
+        this.canvas.data.forEach((col, x) => {
           this.canvas.data[x].forEach((pixel, y) => {
-            CANVAS_CTX.fillStyle = pixel.color;
-            CANVAS_CTX.fillRect(x * this.scale, y * this.scale, this.scale, this.scale);
+            this.drawPixel(x, y, pixel.color);
           })
-        }
+        })
       },
+      // todo: Design new grid based on 10x10 tiles
       renderGrid() {
-        const GRID = document.getElementById("grid");
-        const GRID_CTX = GRID.getContext("2d");
+        const GRID_CTX = this.GRID.getContext("2d");
         const GRID_COLOR_EVEN = '#D3D3D3';
         const GRID_COLOR_UNEVEN = '#FFFFFF';
 
@@ -503,14 +509,20 @@
                 GRID_CTX.fillStyle = GRID_COLOR_UNEVEN
               }
             }
-            GRID_CTX.fillRect(i,row,1,1);
+            GRID_CTX.fillRect(i * this.canvasScaleModifier, row * this.canvasScaleModifier,this.canvasScaleModifier,this.canvasScaleModifier);
           }
         }
-      }
+      },
+      linkElements() {
+        this.CANVAS_CONTAINER = document.getElementById("canvas-container");
+        this.CANVAS_CONTROLLER = document.getElementById("canvas-controller");
+        this.CANVAS = document.getElementById("canvas");
+        this.GRID = document.getElementById("grid");
+      },
     },
     mounted() {
+      this.linkElements();
       this.getToken();
-      this.getCanvas();
     }
   }
 </script>
@@ -560,16 +572,16 @@ img {
 }
 
 canvas {
-  display: block!important;
   image-rendering: -moz-crisp-edges;
   image-rendering: pixelated;
   position: absolute;
 }
 
 #canvas-controller {
-  position: absolute;
+  position: relative;
   transform-origin: center;
   z-index: 1;
+  transition: transform .2s ease;
 }
 
 #canvas-wrapper {
