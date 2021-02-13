@@ -1,9 +1,12 @@
 <template>
   <div id="canvas-container">
-    <!--
+
     <snackbar ref="snackbar" :string="snackbar.string" :timeout="snackbar.timeout" :type="snackbar.type"/>
+
     <login-dialog ref="loginDialog" :show-signup="showSignup"/>
+
     <signup-dialog ref="signupDialog" :show-login="showLogin"/>
+
     <v-dialog
         :value="!connected"
         persistent
@@ -97,123 +100,19 @@
       <v-btn id="centerCanvas" class="mt-2 rounded-lg primary backdrop" width="100%" @click="centerCanvas">Center Canvas</v-btn>
       <v-btn id="toggleNightMode" class="mt-2 rounded-lg light backdrop" width="100%" @click="$emit('update:nightMode', !nightMode);">{{ nightMode ? 'Dark Theme' : 'Light Theme' }}</v-btn>
     </div>
-    <div v-if="canvas.data.length > 0" id="detailsMenu" class="pa-5 rounded-lg light--text backdrop" :class="this.nightMode ? 'grey darken-4' : 'dark'">
-      <v-chip
-          class="rounded-xl font-weight-bold backdrop"
-          style="width: 50%;cursor: pointer"
-          color="primary"
-          label
-      >
-        <div
-            class="px-2 mx-auto rounded-lg primary darken-1"
-        >
-          {{ `X: ${selectedPixel.x}` }}
-        </div>
-      </v-chip>
-      <v-chip
-          class="rounded-xl font-weight-bold backdrop"
-          style="width: 50%;cursor: pointer"
-          color="primary"
-          label
-      >
-        <div
-            class="px-2 mx-auto rounded-lg primary darken-1"
-        >
-          {{ `Y: ${selectedPixel.y}` }}
-        </div>
-      </v-chip>
-      <v-chip
-          class="mt-2 rounded-xl font-weight-bold backdrop"
-          style="width: 100%;cursor: pointer"
-          color="primary"
-          label
-      >
-        <v-icon left>
-          mdi-account
-        </v-icon>
-        <div
-            class="px-2 ml-auto rounded-lg primary darken-1"
-            :style="{ color: (canvas.data[selectedPixel.x][selectedPixel.y].owner === this.account.username) ? '#1aff00' : 'white' }"
-        >
-          {{ canvas.data[selectedPixel.x][selectedPixel.y].owner ? canvas.data[selectedPixel.x][selectedPixel.y].owner : '' }}
-        </div>
-      </v-chip>
-      <v-chip
-          class="mt-2 font-weight-bold backdrop"
-          style="width: 100%;cursor: pointer"
-          color="primary"
-          text-color="white"
-      >
-        <v-icon left large class="d-inline-flex justify-start">$nanoIcon</v-icon>
-        <div
-            class="px-2 ml-auto rounded-lg primary darken-1"
-        >
-          {{ canvas.data[selectedPixel.x][selectedPixel.y].price ? canvas.data[selectedPixel.x][selectedPixel.y].price : 0 }}
-        </div>
-      </v-chip>
-      <v-chip
-          class="mt-2 font-weight-bold backdrop"
-          style="width: 100%;cursor: pointer"
-          color="primary"
-          text-color="white"
-      >
-        <v-icon left>
-          mdi-calendar
-        </v-icon>
-        <div
-            class="px-2 ml-auto rounded-lg primary darken-1"
-        >
-          {{ canvas.data[selectedPixel.x][selectedPixel.y].updated ? new Date(canvas.data[selectedPixel.x][selectedPixel.y].updated).toLocaleDateString() : 0 }}
-        </div>
-      </v-chip>
-      <v-chip
-          class="mt-2 font-weight-bold backdrop"
-          style="width: 100%;cursor: pointer"
-          color="primary"
-          text-color="white"
-      >
-        <v-icon left>
-          mdi-clock
-        </v-icon>
-        <div
-            class="px-2 ml-auto rounded-lg primary darken-1"
-        >
-          {{ canvas.data[selectedPixel.x][selectedPixel.y].updated ? new Date(canvas.data[selectedPixel.x][selectedPixel.y].updated).toLocaleTimeString() : 0 }}
-        </div>
-      </v-chip>
-      <v-chip
-          class="mt-2 rounded-xl font-weight-bold backdrop"
-          style="width: 100%;cursor: pointer"
-          :color="canvas.data[selectedPixel.x][selectedPixel.y].color ? canvas.data[selectedPixel.x][selectedPixel.y].color : '#FFF'"
-          label
-      >
-        <div
-            class="px-2 mx-auto rounded-lg"
-            style="background-color: rgba(0, 0, 0, 0.5);color: white"
-        >
-          {{ canvas.data[selectedPixel.x][selectedPixel.y].color ? canvas.data[selectedPixel.x][selectedPixel.y].color : '#FFF' }}
-        </div>
-      </v-chip>
-    </div>
--->
-    <!--
-            @mousedown.left="handleLeftClick"
-            @mousedown.right="startDragging"
-            @mouseup.left="endDragging"
-            @mouseup.right="endDragging"
-            @mouseleave="endDragging"
-            @mousemove.prevent="handleMouseMovement"
-            @wheel.prevent="zoomCanvasContainer"
-            -->
 
+    // This fucker causes lag if I pass currentPixel
+    <details-menu />
 
     <div
         id="canvas-controller"
-        :style="{ transform: `scale(${zoom.zoomIntensity})`, cursor: editMode ? (movement.dragging ? 'move' : 'default') : 'move' }"
+        :style="{ transform: `scale(${zoom.zoomIntensity})`,  cursor: editMode ? (movement.dragging ? 'move' : 'default') : 'move' }"
         @contextmenu.prevent
+        @wheel.prevent="zoomCanvasContainer"
         @mousemove="handleMouseMovement"
         @mousedown="handleMouseDown"
         @mouseup="endDragging"
+        @mouseleave="endDragging"
     >
       <canvas id="canvas"/>
       <canvas id="grid" :style="{ visibility: showGrid ? 'visible' : 'hidden' }"/>
@@ -224,9 +123,17 @@
 <script>
 
 
+  import Snackbar from "@/components/Snackbar";
+  import LoginDialog from "@/components/LoginDialog";
+  import SignupDialog from "@/components/SignupDialog";
+  import DetailsMenu from "@/components/DetailsMenu";
   export default {
     name: 'MainView',
     components: {
+      DetailsMenu,
+      SignupDialog,
+      LoginDialog,
+      Snackbar
     },
     props: ['nightMode'],
     data: () => ({
@@ -248,7 +155,7 @@
         password: '',
       },
       defaultCanvasDimension: 256,
-      canvasScaleModifier: 1,
+      canvasScaleModifier: 10,
       canvas: {
         name: '',
         dimensions: {
@@ -263,7 +170,7 @@
       editMode: false,
       showGrid: true,
       zoom: {
-        zoomIntensity: 1,
+        zoomIntensity: 0.3,
         maxZoom: 16,
         minZoom: 0.1,
       },
@@ -284,11 +191,16 @@
         timeout: 4000,
         type: ''
       },
-      selectedPixel: {
+      mouseCoords: {
         x: 0,
         y: 0
       }
     }),
+    computed: {
+      currentPixel() {
+        return this.canvas.data.length > 0 ? this.canvas.data[this.mouseCoords.x][this.mouseCoords.y] : { x: 0, y: 0, color: undefined, owner: undefined, price: undefined, updated: 0 };
+      }
+    },
     sockets: {
       connect() {},
       disconnect() {
@@ -409,8 +321,8 @@
         CANVAS_CTX.fillRect(x * this.canvasScaleModifier, y * this.canvasScaleModifier, this.canvasScaleModifier, this.canvasScaleModifier)
       },
       buyPixel() {
-        const x = this.selectedPixel.x;
-        const y = this.selectedPixel.y;
+        const x = this.mouseCoords.x;
+        const y = this.mouseCoords.y;
         const color = this.color;
 
         if (this.account['_funds'] >= this.getPixelPrice(x, y)) {
@@ -419,7 +331,6 @@
         } else {
           this.alert('Insufficient funds!', 'error');
         }
-        //console.log("Clicked!", x, y, this.zoom.zoomIntensity)
       },
       getPixelPrice(x, y) {
         return this.canvas.data[x][y]['price'];
@@ -436,16 +347,21 @@
         this.movement.dragging = false;
         this.movement.offsetX += this.movement.deltaX;
         this.movement.offsetY += this.movement.deltaY;
-        this.movement.deltaX = 0;
-        this.movement.deltaY = 0;
-        this.movement.startX = 0;
-        this.movement.startY = 0;
         //this.movement.originX = (this.this.canvas.dimensions.x - this.movement.offsetX) / 5;
         //this.movement.originY = (this.this.canvas.dimensions.y - this.movement.offsetY) / 5;
+      },
+      handleMouseDown(e) {
+        // Drag if in view mode or when right-click
+        if (!this.editMode || e.button === 2) {
+          this.startDragging(e);
+        } else {
+          this.buyPixel();
+        }
       },
       handleMouseMovement(e) {
         this.updateMousePosition(e);
         this.updateMouseDeltaMovement(e);
+        //window.requestAnimationFrame(this.handleMouseMovement);
       },
       updateMouseDeltaMovement(e) {
         this.movement.deltaX = this.movement.dragging ? e.clientX - this.movement.startX : 0;
@@ -459,13 +375,8 @@
         let x = (e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity / this.canvasScaleModifier;
         let y = (e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity / this.canvasScaleModifier;
 
-        this.selectedPixel.x = Math.min(Math.max(Math.round(x), 0), this.canvas.dimensions.x - 1);
-        this.selectedPixel.y = Math.min(Math.max(Math.round(y), 0), this.canvas.dimensions.y - 1);
-      },
-      handleMouseDown(e) {
-        this.movement.dragging = true;
-        this.movement.startX = e.clientX;
-        this.movement.startY = e.clientY;
+        this.mouseCoords.x = Math.min(Math.max(Math.round(x), 0), this.canvas.dimensions.x - 1);
+        this.mouseCoords.y = Math.min(Math.max(Math.round(y), 0), this.canvas.dimensions.y - 1);
       },
       zoomCanvasContainer(e) {
         let scrollDirection;
@@ -556,6 +467,7 @@ img {
 }
 
 #detailsMenu {
+  display: block;
   z-index: 5;
   width: 196px;
   position: absolute;
@@ -581,7 +493,6 @@ canvas {
   position: relative;
   transform-origin: center;
   z-index: 1;
-  transition: transform .2s ease;
 }
 
 #canvas-wrapper {
