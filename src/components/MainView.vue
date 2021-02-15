@@ -102,7 +102,7 @@
     </div>
 
     // This fucker causes lag if I pass currentPixel
-    <details-menu />
+    <details-menu :account="account" :current-pixel="currentPixel" :night-mode="nightMode" />
 
     <div
         id="canvas-controller"
@@ -142,6 +142,7 @@
       CANVAS_CONTROLLER: '',
       CANVAS: '',
       GRID: '',
+      CANVAS_CTX: '',
       connected: false,
       accountMenu: false,
       account: {
@@ -168,7 +169,7 @@
       },
       color: '#000000',
       editMode: false,
-      showGrid: true,
+      showGrid: false,
       zoom: {
         zoomIntensity: 0.3,
         maxZoom: 16,
@@ -315,17 +316,15 @@
         if (this.editMode) { this.buyPixel(e) } else { this.startDragging(e) }
       },
       drawPixel(x, y, color) {
-        const CANVAS_CTX = this.CANVAS.getContext("2d");
-
-        CANVAS_CTX.fillStyle = color
-        CANVAS_CTX.fillRect(x * this.canvasScaleModifier, y * this.canvasScaleModifier, this.canvasScaleModifier, this.canvasScaleModifier)
+        this.CANVAS_CTX.fillStyle = color
+        this.CANVAS_CTX.fillRect(x * this.canvasScaleModifier, y * this.canvasScaleModifier, this.canvasScaleModifier, this.canvasScaleModifier)
       },
       buyPixel() {
         const x = this.mouseCoords.x;
         const y = this.mouseCoords.y;
         const color = this.color;
 
-        if (this.account['_funds'] >= this.getPixelPrice(x, y)) {
+        if (this.account._funds >= this.getPixelPrice(x, y)) {
           this.drawPixel(x, y, color);
           this.$socket.emit('pixel', { x, y, color });
         } else {
@@ -370,13 +369,15 @@
         this.CANVAS_CONTROLLER.style.top = this.movement.offsetY + this.movement.deltaY + 'px';
       },
       updateMousePosition(e) {
-        const CANVAS_BOUNDS = this.CANVAS.getBoundingClientRect();
-        // Clamp between 0 and 255, we don't want pixels out of bounds
-        let x = (e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity / this.canvasScaleModifier;
-        let y = (e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity / this.canvasScaleModifier;
+        if (!this.movement.dragging) {
+          const CANVAS_BOUNDS = this.CANVAS.getBoundingClientRect();
+          // Clamp between 0 and 255, we don't want pixels out of bounds
+          let x = (e.clientX - CANVAS_BOUNDS.left) / this.zoom.zoomIntensity / this.canvasScaleModifier;
+          let y = (e.clientY - CANVAS_BOUNDS.top) / this.zoom.zoomIntensity / this.canvasScaleModifier;
 
-        this.mouseCoords.x = Math.min(Math.max(Math.round(x), 0), this.canvas.dimensions.x - 1);
-        this.mouseCoords.y = Math.min(Math.max(Math.round(y), 0), this.canvas.dimensions.y - 1);
+          this.mouseCoords.x = Math.min(Math.max(Math.floor(x), 0), this.canvas.dimensions.x - 1);
+          this.mouseCoords.y = Math.min(Math.max(Math.floor(y), 0), this.canvas.dimensions.y - 1);
+        }
       },
       zoomCanvasContainer(e) {
         let scrollDirection;
@@ -429,6 +430,7 @@
         this.CANVAS_CONTROLLER = document.getElementById("canvas-controller");
         this.CANVAS = document.getElementById("canvas");
         this.GRID = document.getElementById("grid");
+        this.CANVAS_CTX = this.CANVAS.getContext('2d')
       },
     },
     mounted() {

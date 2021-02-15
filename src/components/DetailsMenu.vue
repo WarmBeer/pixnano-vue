@@ -1,6 +1,29 @@
 <template>
   <div id="detailsMenu" class="pa-5 rounded-lg light--text backdrop" :class="this.nightMode ? 'grey darken-4' : 'dark'">
-
+    <v-chip
+        class="rounded-xl font-weight-bold backdrop"
+        style="width: 50%;cursor: pointer"
+        color="primary"
+        label
+    >
+      <div
+          class="px-2 mx-auto rounded-lg primary darken-1"
+      >
+        {{ `X: ${currentPixel.x}` }}
+      </div>
+    </v-chip>
+    <v-chip
+        class="rounded-xl font-weight-bold backdrop"
+        style="width: 50%;cursor: pointer"
+        color="primary"
+        label
+    >
+      <div
+          class="px-2 mx-auto rounded-lg primary darken-1"
+      >
+        {{ `Y: ${currentPixel.y}` }}
+      </div>
+    </v-chip>
     <v-chip
         class="mt-2 rounded-xl font-weight-bold backdrop"
         style="width: 100%;cursor: pointer"
@@ -58,6 +81,19 @@
           class="px-2 ml-auto rounded-lg primary darken-1"
       >
         {{ new Date(currentPixel.updated).toLocaleTimeString() }}
+      </div>
+    </v-chip>
+    <v-chip
+        class="mt-2 rounded-xl font-weight-bold backdrop"
+        style="width: 100%;cursor: pointer"
+        :color="currentPixel.color"
+        label
+    >
+      <div
+          class="px-2 mx-auto rounded-lg white--text"
+          style="background-color: rgba(0, 0, 0, 0.5)"
+      >
+        {{ currentPixel.color }}
       </div>
     </v-chip>
   </div>
